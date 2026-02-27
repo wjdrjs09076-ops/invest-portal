@@ -17,7 +17,7 @@ type Row = {
 type FinancialsPayload = {
   ticker: string;
   generated_at_utc: string;
-  source_note?: string;
+  source_note?: string; // financials route에서 "SEC fallback" 같은 설명을 내려줄 수 있음
   rows: Row[];
   multiples?: { pe: number | null; ps: number | null };
 };
@@ -53,10 +53,9 @@ function scaleInverse(x: number, best: number, worst: number) {
 }
 
 /**
- * Guardrail: “이런 종목은 멀티플이 의미 없거나 왜곡” 케이스 처리
- * - PS가 너무 높으면(예: > 40) value scoring에서 PS는 스킵
- * - PE가 너무 높으면(예: > 80) value scoring에서 PE는 스킵
- * - (원하면 임계치 바꿔도 됨)
+ * Guardrail: 멀티플이 의미 없거나 왜곡되는 케이스 처리
+ * - PS가 너무 높으면(예: > 40) value scoring에서 PS 스킵
+ * - PE가 너무 높으면(예: > 80) value scoring에서 PE 스킵
  */
 function sanitizeMultiples(pe: number | null, ps: number | null) {
   const out = { pe, ps, notes: [] as string[] };
@@ -72,11 +71,12 @@ function sanitizeMultiples(pe: number | null, ps: number | null) {
   return out;
 }
 
-/**
- * Coverage rule:
- * - used weight 0% -> neutral base 50 but LOW CONF
- * - low coverage면 신호를 WATCH로 완화(과대/과소평가 방지)
- */
+function pickConfidence(coverage: number) {
+  if (coverage >= 0.7) return "HIGH";
+  if (coverage >= 0.35) return "MED";
+  return "LOW";
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickerRaw = searchParams.get("ticker");
@@ -87,10 +87,11 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
-    // ✅ financials는 이제 SEC fallback 포함 route.ts를 사용
+    // ✅ financials route는 SEC fallback 포함 버전이라고 가정
     const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, {
       cache: "no-store",
     });
+
     if (!finRes.ok) {
       return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
     }
@@ -104,7 +105,7 @@ export async function GET(req: Request) {
 
     // ===== Feature engineering =====
 
-    // 성장: 3개년(=2 interval) CAGR 우선, 없으면 YoY
+    // 성장: 3개년 CAGR 우선(=2 interval), 없으면 YoY
     let revCagr: number | null = null;
     if (oldest && latest && isNum(oldest.revenue) && isNum(latest.revenue) && rows.length >= 3) {
       revCagr = cagr(oldest.revenue, latest.revenue, rows.length - 1);
@@ -129,9 +130,10 @@ export async function GET(req: Request) {
       fcfTrend = trend(Math.abs(prev.fcf), Math.abs(latest.fcf)) as any;
     }
 
-    // 밸류
+    // 밸류 (원본 멀티플 + scoring용 sanitize 멀티플)
     const pe0 = fin.multiples?.pe ?? null;
     const ps0 = fin.multiples?.ps ?? null;
+
     const mult = sanitizeMultiples(pe0, ps0);
     const pe = mult.pe;
     const ps = mult.ps;
@@ -140,7 +142,7 @@ export async function GET(req: Request) {
     const WEIGHTS = { growth: 35, margin: 35, value: 30 } as const;
     const used = { growth: false, margin: false, value: false };
 
-    // Growth(0~35): -20% ~ +30%를 0~1로
+    // Growth(0~35): -20% ~ +30%
     let growthScore = 0;
     if (isNum(revCagr)) {
       used.growth = true;
@@ -151,27 +153,33 @@ export async function GET(req: Request) {
     // Margin(0~35): Op 0~25% -> 0~20, FCF 0~20% -> 0~15
     let marginScore = 0;
     let marginUsed = false;
+
     if (isNum(opMargin)) {
       marginUsed = true;
       marginScore += scaleLinear(opMargin, 0, 0.25) * 20;
     }
+
     if (isNum(fcfMargin)) {
       marginUsed = true;
       marginScore += scaleLinear(fcfMargin, 0, 0.2) * 15;
     }
+
     if (marginUsed) used.margin = true;
 
     // Value(0~30): PE 10~40 (18), PS 1~12 (12)
     let valueScore = 0;
     let valueUsed = false;
+
     if (isNum(pe)) {
       valueUsed = true;
       valueScore += scaleInverse(pe, 10, 40) * 18;
     }
+
     if (isNum(ps)) {
       valueUsed = true;
       valueScore += scaleInverse(ps, 1, 12) * 12;
     }
+
     if (valueUsed) used.value = true;
 
     const usedTotalWeight =
@@ -191,17 +199,15 @@ export async function GET(req: Request) {
     }
 
     // ===== Coverage penalty =====
-    // coverage = 사용한 가중치 / 100
     const coverage = usedTotalWeight / 100;
 
-    // soft penalty: 0% coverage -> 70%만 인정, 100% coverage -> 100% 인정
+    // 0% -> 70%, 100% -> 100%
     const penaltyFactor = 0.7 + 0.3 * coverage;
 
     let scoreFinal = Math.round(scoreNorm * penaltyFactor);
     scoreFinal = clamp(scoreFinal, 0, 100);
 
     // ===== Signal =====
-    // 기본 신호
     let signal: "BUY" | "WATCH" | "HOLD" | "AVOID" = "WATCH";
     if (scoreFinal >= 70) signal = "BUY";
     else if (scoreFinal >= 55) signal = "WATCH";
@@ -209,9 +215,8 @@ export async function GET(req: Request) {
     else signal = "AVOID";
 
     // ===== Low confidence adjustment =====
-    // coverage가 낮으면 “강한 콜”을 피하기 위해 WATCH로 완화
-    // (너가 지적한 QSI/IONQ 같은 케이스 과대평가/과소평가 모두 방지)
-    const lowConf = coverage < 0.6; // 기준: 60% 미만이면 LOW CONF
+    // coverage < 0.6 이면 LOW CONF
+    const lowConf = coverage < 0.6;
     const baseSignal = signal;
 
     const warnings: string[] = [];
@@ -221,12 +226,14 @@ export async function GET(req: Request) {
     else if (coverage < 0.35) warnings.push("Very low coverage; treat as WATCH (not a strong call).");
     else if (coverage < 0.6) warnings.push("Low coverage; treat as WATCH (not a strong call).");
 
+    // LOW CONF이면 강한 콜을 WATCH로 완화
     if (lowConf && signal !== "WATCH") {
       signal = "WATCH";
     }
 
     // ===== Auto summary =====
     const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+
     const revTxt = isNum(revCagr) ? `Rev CAGR ${pct(revCagr)}` : "Rev CAGR N/A";
     const opmTxt = isNum(opMargin) ? `OpM ${pct(opMargin)}` : "OpM N/A";
     const fcfmTxt = isNum(fcfMargin) ? `FCF M ${pct(fcfMargin)}` : "FCF M N/A";
@@ -234,13 +241,57 @@ export async function GET(req: Request) {
 
     const autoSummary = `${revTxt} / ${opmTxt} / ${fcfmTxt} / ${fcfTxt}`;
 
+    const confidence = pickConfidence(coverage);
+
+    // ===== Explain (분해표) =====
+    // 프론트에서 그대로 "왜 점수/신호가 나왔는지" 렌더 가능
+    const explain = {
+      growth: {
+        used: used.growth,
+        weight: WEIGHTS.growth,
+        revenue_cagr: revCagr,
+        score: Math.round(growthScore),
+      },
+      margin: {
+        used: used.margin,
+        weight: WEIGHTS.margin,
+        op_margin: opMargin,
+        fcf_margin: fcfMargin,
+        score: Math.round(marginScore),
+      },
+      value: {
+        used: used.value,
+        weight: WEIGHTS.value,
+        pe_scored: pe, // sanitize 이후 scoring에 사용한 값
+        ps_scored: ps, // sanitize 이후 scoring에 사용한 값
+        score: Math.round(valueScore),
+      },
+      coverage: {
+        used_total_weight: usedTotalWeight,
+        coverage: Number(coverage.toFixed(2)),
+        penalty_factor: Number(penaltyFactor.toFixed(2)),
+        score_norm: Math.round(scoreNorm),
+        raw_total: Math.round(growthScore + marginScore + valueScore),
+      },
+    };
+
     return NextResponse.json({
       ticker,
       generated_at_utc: new Date().toISOString(),
 
+      // 결과
       signal,
       score: scoreFinal,
+      confidence, // HIGH/MED/LOW
 
+      // 프론트에서 "Source/AsOf" 표기용
+      source: {
+        financials_generated_at_utc: fin.generated_at_utc,
+        financials_note: fin.source_note ?? "",
+        multiples_source: "finnhub", // 현재 구조상 fin route가 finnhub 멀티플을 내려주는 전제
+      },
+
+      // 기존 네 구조 유지
       diagnostics: {
         score_norm: scoreNorm,
         coverage: Number(coverage.toFixed(2)),
@@ -269,11 +320,12 @@ export async function GET(req: Request) {
         op_margin: opMargin,
         fcf_margin: fcfMargin,
         fcf_trend: fcfTrend,
-        pe: pe0,
-        ps: ps0,
+        pe: pe0, // 원본
+        ps: ps0, // 원본
         auto: autoSummary,
       },
 
+      explain,
       warnings,
     });
   } catch (err: any) {
