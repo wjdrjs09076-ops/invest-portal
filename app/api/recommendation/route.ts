@@ -17,9 +17,16 @@ type Row = {
 type FinancialsPayload = {
   ticker: string;
   generated_at_utc: string;
-  source_note?: string; // financials route에서 "SEC fallback" 같은 설명을 내려줄 수 있음
+  source_note?: string;
   rows: Row[];
   multiples?: { pe: number | null; ps: number | null };
+};
+
+type SectorPayload = {
+  ticker: string;
+  generated_at_utc: string;
+  sector: string;
+  source: string;
 };
 
 function isNum(x: any): x is number {
@@ -77,6 +84,46 @@ function pickConfidence(coverage: number) {
   return "LOW";
 }
 
+/**
+ * ✅ 섹터별 가중치(합=100 유지)
+ * - Tech/Comm: 성장 비중↑
+ * - Utilities/Staples/RE: 밸류+마진 비중↑
+ * - Financials/Energy/Industrials: 밸류 비중 약간↑
+ */
+function sectorWeights(sectorRaw: string | null | undefined) {
+  const sector = (sectorRaw || "Unknown").toLowerCase();
+
+  // 기본
+  let w = { growth: 35, margin: 35, value: 30 };
+
+  const is = (k: string) => sector.includes(k);
+
+  if (is("technology") || is("information technology") || is("communication") || is("software") || is("internet")) {
+    w = { growth: 40, margin: 30, value: 30 };
+  } else if (is("utilities") || is("real estate") || is("consumer defensive") || is("consumer staples") || is("staples")) {
+    w = { growth: 25, margin: 40, value: 35 };
+  } else if (is("financial") || is("banks") || is("insurance")) {
+    w = { growth: 30, margin: 35, value: 35 };
+  } else if (is("energy") || is("industrials") || is("materials")) {
+    w = { growth: 30, margin: 35, value: 35 };
+  } else if (is("health care") || is("healthcare") || is("pharma")) {
+    w = { growth: 35, margin: 35, value: 30 };
+  }
+
+  // 혹시라도 합이 100이 아니면 안전장치(현재는 항상 100)
+  const sum = w.growth + w.margin + w.value;
+  if (sum !== 100) {
+    const scale = 100 / sum;
+    w = {
+      growth: Math.round(w.growth * scale),
+      margin: Math.round(w.margin * scale),
+      value: 100 - Math.round(w.growth * scale) - Math.round(w.margin * scale),
+    };
+  }
+
+  return w;
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickerRaw = searchParams.get("ticker");
@@ -87,16 +134,28 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
-    // ✅ financials route는 SEC fallback 포함 버전이라고 가정
+    // 1) financials
     const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, {
       cache: "no-store",
     });
-
     if (!finRes.ok) {
       return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
     }
-
     const fin = (await finRes.json()) as FinancialsPayload;
+
+    // 2) sector (실패해도 default weights로 계속 진행)
+    let sectorInfo: SectorPayload | null = null;
+    try {
+      const secRes = await fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, {
+        cache: "no-store",
+      });
+      if (secRes.ok) sectorInfo = (await secRes.json()) as SectorPayload;
+    } catch {
+      sectorInfo = null;
+    }
+
+    const sector = sectorInfo?.sector ?? "Unknown";
+    const weights = sectorWeights(sector);
 
     const rows = [...(fin.rows || [])].sort((a, b) => a.year - b.year);
     const latest = rows[rows.length - 1] || null;
@@ -104,8 +163,7 @@ export async function GET(req: Request) {
     const oldest = rows[0] || null;
 
     // ===== Feature engineering =====
-
-    // 성장: 3개년 CAGR 우선(=2 interval), 없으면 YoY
+    // 성장: 3개년 CAGR 우선, 없으면 YoY
     let revCagr: number | null = null;
     if (oldest && latest && isNum(oldest.revenue) && isNum(latest.revenue) && rows.length >= 3) {
       revCagr = cagr(oldest.revenue, latest.revenue, rows.length - 1);
@@ -124,71 +182,71 @@ export async function GET(req: Request) {
         ? latest.fcf / latest.revenue
         : null;
 
-    // FCF 추세 (abs로 비교: 부호 변동에 덜 민감)
+    // FCF 추세 (abs 비교)
     let fcfTrend: "UP" | "DOWN" | "FLAT" | "N/A" = "N/A";
     if (prev && latest && isNum(prev.fcf) && isNum(latest.fcf) && prev.fcf !== 0) {
       fcfTrend = trend(Math.abs(prev.fcf), Math.abs(latest.fcf)) as any;
     }
 
-    // 밸류 (원본 멀티플 + scoring용 sanitize 멀티플)
+    // 밸류
     const pe0 = fin.multiples?.pe ?? null;
     const ps0 = fin.multiples?.ps ?? null;
-
     const mult = sanitizeMultiples(pe0, ps0);
     const pe = mult.pe;
     const ps = mult.ps;
 
     // ===== Scoring (missing은 0점이 아니라 "스킵") =====
-    const WEIGHTS = { growth: 35, margin: 35, value: 30 } as const;
     const used = { growth: false, margin: false, value: false };
 
-    // Growth(0~35): -20% ~ +30%
+    // Growth(0~weights.growth): -20% ~ +30%
     let growthScore = 0;
     if (isNum(revCagr)) {
       used.growth = true;
       const s01 = scaleLinear(revCagr, -0.2, 0.3);
-      growthScore = s01 * WEIGHTS.growth;
+      growthScore = s01 * weights.growth;
     }
 
-    // Margin(0~35): Op 0~25% -> 0~20, FCF 0~20% -> 0~15
+    // Margin(0~weights.margin): 내부 배분은 “가중치 비율”로 자동 맞춤
+    // 기본 비율: Op 20 / FCF 15 (총 35) -> 섹터 marginWeight에 맞춰 스케일
     let marginScore = 0;
     let marginUsed = false;
 
+    const opPart = weights.margin * (20 / 35);
+    const fcfPart = weights.margin * (15 / 35);
+
     if (isNum(opMargin)) {
       marginUsed = true;
-      marginScore += scaleLinear(opMargin, 0, 0.25) * 20;
+      marginScore += scaleLinear(opMargin, 0, 0.25) * opPart;
     }
-
     if (isNum(fcfMargin)) {
       marginUsed = true;
-      marginScore += scaleLinear(fcfMargin, 0, 0.2) * 15;
+      marginScore += scaleLinear(fcfMargin, 0, 0.2) * fcfPart;
     }
-
     if (marginUsed) used.margin = true;
 
-    // Value(0~30): PE 10~40 (18), PS 1~12 (12)
+    // Value(0~weights.value): 내부 배분도 비율(PE 18 / PS 12 총 30)
     let valueScore = 0;
     let valueUsed = false;
 
+    const pePart = weights.value * (18 / 30);
+    const psPart = weights.value * (12 / 30);
+
     if (isNum(pe)) {
       valueUsed = true;
-      valueScore += scaleInverse(pe, 10, 40) * 18;
+      valueScore += scaleInverse(pe, 10, 40) * pePart;
     }
-
     if (isNum(ps)) {
       valueUsed = true;
-      valueScore += scaleInverse(ps, 1, 12) * 12;
+      valueScore += scaleInverse(ps, 1, 12) * psPart;
     }
-
     if (valueUsed) used.value = true;
 
     const usedTotalWeight =
-      (used.growth ? WEIGHTS.growth : 0) +
-      (used.margin ? WEIGHTS.margin : 0) +
-      (used.value ? WEIGHTS.value : 0);
+      (used.growth ? weights.growth : 0) +
+      (used.margin ? weights.margin : 0) +
+      (used.value ? weights.value : 0);
 
     // ===== Normalize (0~100) =====
-    // 아무것도 없으면 “중립 50”
     let scoreNorm: number;
     if (usedTotalWeight === 0) {
       scoreNorm = 50;
@@ -200,8 +258,6 @@ export async function GET(req: Request) {
 
     // ===== Coverage penalty =====
     const coverage = usedTotalWeight / 100;
-
-    // 0% -> 70%, 100% -> 100%
     const penaltyFactor = 0.7 + 0.3 * coverage;
 
     let scoreFinal = Math.round(scoreNorm * penaltyFactor);
@@ -215,7 +271,6 @@ export async function GET(req: Request) {
     else signal = "AVOID";
 
     // ===== Low confidence adjustment =====
-    // coverage < 0.6 이면 LOW CONF
     const lowConf = coverage < 0.6;
     const baseSignal = signal;
 
@@ -226,44 +281,43 @@ export async function GET(req: Request) {
     else if (coverage < 0.35) warnings.push("Very low coverage; treat as WATCH (not a strong call).");
     else if (coverage < 0.6) warnings.push("Low coverage; treat as WATCH (not a strong call).");
 
-    // LOW CONF이면 강한 콜을 WATCH로 완화
-    if (lowConf && signal !== "WATCH") {
-      signal = "WATCH";
-    }
+    if (lowConf && signal !== "WATCH") signal = "WATCH";
 
     // ===== Auto summary =====
     const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
-
     const revTxt = isNum(revCagr) ? `Rev CAGR ${pct(revCagr)}` : "Rev CAGR N/A";
     const opmTxt = isNum(opMargin) ? `OpM ${pct(opMargin)}` : "OpM N/A";
     const fcfmTxt = isNum(fcfMargin) ? `FCF M ${pct(fcfMargin)}` : "FCF M N/A";
     const fcfTxt = `FCF Trend ${fcfTrend}`;
-
     const autoSummary = `${revTxt} / ${opmTxt} / ${fcfmTxt} / ${fcfTxt}`;
 
     const confidence = pickConfidence(coverage);
 
     // ===== Explain (분해표) =====
-    // 프론트에서 그대로 "왜 점수/신호가 나왔는지" 렌더 가능
     const explain = {
+      sector: {
+        sector,
+        source: sectorInfo?.source ?? "unknown",
+        weights_used: weights, // ✅ 핵심: 섹터별 가중치 노출
+      },
       growth: {
         used: used.growth,
-        weight: WEIGHTS.growth,
+        weight: weights.growth,
         revenue_cagr: revCagr,
         score: Math.round(growthScore),
       },
       margin: {
         used: used.margin,
-        weight: WEIGHTS.margin,
+        weight: weights.margin,
         op_margin: opMargin,
         fcf_margin: fcfMargin,
         score: Math.round(marginScore),
       },
       value: {
         used: used.value,
-        weight: WEIGHTS.value,
-        pe_scored: pe, // sanitize 이후 scoring에 사용한 값
-        ps_scored: ps, // sanitize 이후 scoring에 사용한 값
+        weight: weights.value,
+        pe_scored: pe,
+        ps_scored: ps,
         score: Math.round(valueScore),
       },
       coverage: {
@@ -279,19 +333,18 @@ export async function GET(req: Request) {
       ticker,
       generated_at_utc: new Date().toISOString(),
 
-      // 결과
       signal,
       score: scoreFinal,
-      confidence, // HIGH/MED/LOW
+      confidence,
 
-      // 프론트에서 "Source/AsOf" 표기용
+      // Source/AsOf 표기용
       source: {
         financials_generated_at_utc: fin.generated_at_utc,
         financials_note: fin.source_note ?? "",
-        multiples_source: "finnhub", // 현재 구조상 fin route가 finnhub 멀티플을 내려주는 전제
+        multiples_source: "finnhub",
+        sector_source: sectorInfo?.source ?? "unknown",
       },
 
-      // 기존 네 구조 유지
       diagnostics: {
         score_norm: scoreNorm,
         coverage: Number(coverage.toFixed(2)),
@@ -316,12 +369,13 @@ export async function GET(req: Request) {
       },
 
       summary: {
+        sector,
         revenue_cagr: revCagr,
         op_margin: opMargin,
         fcf_margin: fcfMargin,
         fcf_trend: fcfTrend,
-        pe: pe0, // 원본
-        ps: ps0, // 원본
+        pe: pe0,
+        ps: ps0,
         auto: autoSummary,
       },
 
