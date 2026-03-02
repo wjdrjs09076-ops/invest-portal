@@ -7,11 +7,6 @@ type Row = {
   revenue: number | null;
   opIncome: number | null;
   fcf: number | null;
-  meta?: {
-    revenue_source?: string;
-    opIncome_source?: string;
-    fcf_source?: string;
-  };
 };
 
 type FinancialsPayload = {
@@ -36,11 +31,14 @@ type SectorDist = {
     {
       pe: number[];
       ps: number[];
-      pe_n?: number;
-      ps_n?: number;
-      n?: number;
     }
   >;
+};
+
+type Candle = {
+  c: number[]; // close
+  t: number[]; // unix timestamps
+  s: string; // "ok" | "no_data"
 };
 
 function isNum(x: any): x is number {
@@ -63,9 +61,13 @@ function trend(a: number, b: number) {
   return "FLAT";
 }
 
-// x0 -> 0, x1 -> 1
 function scaleLinear(x: number, x0: number, x1: number) {
   return clamp((x - x0) / (x1 - x0), 0, 1);
+}
+
+// best -> 1, worst -> 0 (lower is better)
+function scaleInverse(x: number, best: number, worst: number) {
+  return clamp((worst - x) / (worst - best), 0, 1);
 }
 
 /**
@@ -90,7 +92,9 @@ function pickConfidence(coverage: number) {
   return "LOW";
 }
 
-// ---- Sector weights (그대로 유지) ----
+/**
+ * 섹터별 가중치(합=100)
+ */
 function sectorWeights(sectorRaw: string | null | undefined) {
   const sector = (sectorRaw || "Unknown").toLowerCase();
   let w = { growth: 35, margin: 35, value: 30 };
@@ -121,10 +125,9 @@ function sectorWeights(sectorRaw: string | null | undefined) {
 // ---- percentile helper ----
 // returns percentile in [0,1] where 0=cheapest (low multiple), 1=most expensive
 function percentile(sortedAsc: number[], x: number): number | null {
-  if (!Array.isArray(sortedAsc) || sortedAsc.length < 10) return null; // too small = unreliable
+  if (!Array.isArray(sortedAsc) || sortedAsc.length < 10) return null;
   if (!isNum(x)) return null;
 
-  // binary search: first index where arr[i] >= x
   let lo = 0;
   let hi = sortedAsc.length;
   while (lo < hi) {
@@ -132,7 +135,6 @@ function percentile(sortedAsc: number[], x: number): number | null {
     if (sortedAsc[mid] < x) lo = mid + 1;
     else hi = mid;
   }
-  // lo in [0..n]
   const n = sortedAsc.length;
   const rank = clamp(lo, 0, n - 1);
   return rank / (n - 1);
@@ -150,6 +152,70 @@ async function loadSectorDist(): Promise<SectorDist | null> {
   }
 }
 
+// ---- Risk: Finnhub candle ----
+async function fetchCandle(ticker: string): Promise<Candle | null> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - 220 * 24 * 3600; // 약 220일(영업일 150~170개 정도 확보)
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(
+    ticker
+  )}&resolution=D&from=${from}&to=${now}&token=${encodeURIComponent(key)}`;
+
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) return null;
+    const j = (await r.json()) as Candle;
+    if (!j || j.s !== "ok" || !Array.isArray(j.c) || j.c.length < 30) return null;
+    return j;
+  } catch {
+    return null;
+  }
+}
+
+function std(arr: number[]) {
+  if (arr.length < 2) return null;
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const v = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / (arr.length - 1);
+  return Math.sqrt(v);
+}
+
+function computeRisk(closes: number[]) {
+  // returns: vol_20d (annualized), mdd_90d
+  if (!Array.isArray(closes) || closes.length < 30) return null;
+
+  // daily returns
+  const rets: number[] = [];
+  for (let i = 1; i < closes.length; i++) {
+    const a = closes[i - 1];
+    const b = closes[i];
+    if (!isNum(a) || !isNum(b) || a <= 0) continue;
+    rets.push(b / a - 1);
+  }
+
+  // vol: last 20 returns
+  const rets20 = rets.slice(-20);
+  const s20 = std(rets20);
+  const vol20 = s20 === null ? null : s20 * Math.sqrt(252);
+
+  // mdd: last 90 closes
+  const c90 = closes.slice(-90);
+  if (c90.length < 30) {
+    return { vol_20d: vol20, mdd_90d: null };
+  }
+  let peak = c90[0];
+  let mdd = 0;
+  for (const p of c90) {
+    if (!isNum(p)) continue;
+    peak = Math.max(peak, p);
+    const dd = peak > 0 ? (peak - p) / peak : 0;
+    mdd = Math.max(mdd, dd);
+  }
+
+  return { vol_20d: vol20, mdd_90d: mdd };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickerRaw = searchParams.get("ticker");
@@ -160,10 +226,12 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
+    // 1) financials
     const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
     if (!finRes.ok) return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
     const fin = (await finRes.json()) as FinancialsPayload;
 
+    // 2) sector (실패해도 Unknown)
     let sectorInfo: SectorPayload | null = null;
     try {
       const secRes = await fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
@@ -173,14 +241,22 @@ export async function GET(req: Request) {
     }
 
     const sector = sectorInfo?.sector ?? "Unknown";
-    const weights = sectorWeights(sector);
+    const w0 = sectorWeights(sector);
 
+    // 3) sector dist (percentile value)
+    const dist = await loadSectorDist();
+    const secBlock = dist?.sectors?.[sector] || null;
+
+    // 4) risk candle
+    const candle = await fetchCandle(ticker);
+    const riskRaw = candle ? computeRisk(candle.c) : null;
+
+    // ===== Feature engineering =====
     const rows = [...(fin.rows || [])].sort((a, b) => a.year - b.year);
     const latest = rows[rows.length - 1] || null;
     const prev = rows.length >= 2 ? rows[rows.length - 2] : null;
     const oldest = rows[0] || null;
 
-    // ===== Features =====
     let revCagr: number | null = null;
     if (oldest && latest && isNum(oldest.revenue) && isNum(latest.revenue) && rows.length >= 3) {
       revCagr = cagr(oldest.revenue, latest.revenue, rows.length - 1);
@@ -201,36 +277,41 @@ export async function GET(req: Request) {
       fcfTrend = trend(Math.abs(prev.fcf), Math.abs(latest.fcf)) as any;
     }
 
-    // multiples (from finnhub route)
+    // multiples (from finnhub)
     const pe0 = fin.multiples?.pe ?? null;
     const ps0 = fin.multiples?.ps ?? null;
     const mult = sanitizeMultiples(pe0, ps0);
     const pe = mult.pe;
     const ps = mult.ps;
 
-    // sector distribution
-    const dist = await loadSectorDist();
-    const secBlock = dist?.sectors?.[sector] || null;
-
     const pePct = secBlock && isNum(pe) ? percentile(secBlock.pe || [], pe) : null;
     const psPct = secBlock && isNum(ps) ? percentile(secBlock.ps || [], ps) : null;
 
-    // ===== Scoring =====
-    const used = { growth: false, margin: false, value: false };
+    // ===== Weights =====
+    // Fundamentals = 80%, Risk = 20%
+    const FUND = 80;
+    const RISK_W = 20;
 
-    // Growth
+    // sector weights scaled into FUND bucket
+    const wg = (w0.growth / 100) * FUND;
+    const wm = (w0.margin / 100) * FUND;
+    const wv = (w0.value / 100) * FUND;
+
+    const used = { growth: false, margin: false, value: false, risk: false };
+
+    // Growth score (0~wg)
     let growthScore = 0;
     if (isNum(revCagr)) {
       used.growth = true;
-      growthScore = scaleLinear(revCagr, -0.2, 0.3) * weights.growth;
+      growthScore = scaleLinear(revCagr, -0.2, 0.3) * wg;
     }
 
-    // Margin (비율 유지: Op 20/35, FCF 15/35)
+    // Margin score (0~wm): Op 20/35, FCF 15/35 비율 유지
     let marginScore = 0;
     let marginUsed = false;
 
-    const opPart = weights.margin * (20 / 35);
-    const fcfPart = weights.margin * (15 / 35);
+    const opPart = wm * (20 / 35);
+    const fcfPart = wm * (15 / 35);
 
     if (isNum(opMargin)) {
       marginUsed = true;
@@ -242,12 +323,12 @@ export async function GET(req: Request) {
     }
     if (marginUsed) used.margin = true;
 
-    // ✅ Value: sector percentile (cheap => high score)
+    // Value score (0~wv): sector percentile (cheap => high)
     let valueScore = 0;
     let valueUsed = false;
 
-    const pePart = weights.value * (18 / 30);
-    const psPart = weights.value * (12 / 30);
+    const pePart = wv * (18 / 30);
+    const psPart = wv * (12 / 30);
 
     if (pePct !== null) {
       valueUsed = true;
@@ -259,17 +340,39 @@ export async function GET(req: Request) {
     }
     if (valueUsed) used.value = true;
 
-    const usedTotalWeight =
-      (used.growth ? weights.growth : 0) + (used.margin ? weights.margin : 0) + (used.value ? weights.value : 0);
+    // Risk score (0~RISK_W): vol + mdd
+    let riskScore = 0;
+    let vol20 = riskRaw?.vol_20d ?? null;
+    let mdd90 = riskRaw?.mdd_90d ?? null;
 
-    // Normalize
+    if (isNum(vol20) || isNum(mdd90)) {
+      used.risk = true;
+
+      // default missing handling inside
+      const vol01 = isNum(vol20) ? scaleInverse(vol20, 0.2, 0.8) : null; // 20% best, 80% worst
+      const mdd01 = isNum(mdd90) ? scaleInverse(mdd90, 0.1, 0.5) : null; // 10% best, 50% worst
+
+      let r01: number | null = null;
+      if (vol01 !== null && mdd01 !== null) r01 = 0.6 * vol01 + 0.4 * mdd01;
+      else if (vol01 !== null) r01 = vol01;
+      else if (mdd01 !== null) r01 = mdd01;
+
+      if (r01 !== null) riskScore = r01 * RISK_W;
+      else used.risk = false;
+    }
+
+    const usedTotalWeight =
+      (used.growth ? wg : 0) + (used.margin ? wm : 0) + (used.value ? wv : 0) + (used.risk ? RISK_W : 0);
+
+    // Normalize (0~100)
     let scoreNorm: number;
     if (usedTotalWeight === 0) scoreNorm = 50;
-    else scoreNorm = clamp(Math.round(((growthScore + marginScore + valueScore) / usedTotalWeight) * 100), 0, 100);
+    else scoreNorm = clamp(Math.round(((growthScore + marginScore + valueScore + riskScore) / usedTotalWeight) * 100), 0, 100);
 
-    // Coverage penalty
+    // Coverage penalty (usedTotalWeight is out of 100)
     const coverage = usedTotalWeight / 100;
     const penaltyFactor = 0.7 + 0.3 * coverage;
+
     let scoreFinal = clamp(Math.round(scoreNorm * penaltyFactor), 0, 100);
 
     // Signal
@@ -285,11 +388,11 @@ export async function GET(req: Request) {
 
     const warnings: string[] = [];
     if (mult.notes.length) warnings.push(...mult.notes);
-
     if (!dist) warnings.push("Sector distribution not loaded; Value percentile may be unavailable.");
     if (!secBlock) warnings.push(`No sector bucket found for "${sector}" in sector_dist.json.`);
+    if (!candle) warnings.push("Price candles unavailable; RiskScore skipped.");
 
-    if (coverage === 0) warnings.push("No usable financial/value signals; neutral score used.");
+    if (coverage === 0) warnings.push("No usable signals; neutral score used.");
     else if (coverage < 0.35) warnings.push("Very low coverage; treat as WATCH (not a strong call).");
     else if (coverage < 0.6) warnings.push("Low coverage; treat as WATCH (not a strong call).");
 
@@ -301,7 +404,13 @@ export async function GET(req: Request) {
     const opmTxt = isNum(opMargin) ? `OpM ${pct(opMargin)}` : "OpM N/A";
     const fcfmTxt = isNum(fcfMargin) ? `FCF M ${pct(fcfMargin)}` : "FCF M N/A";
     const fcfTxt = `FCF Trend ${fcfTrend}`;
-    const autoSummary = `${revTxt} / ${opmTxt} / ${fcfmTxt} / ${fcfTxt}`;
+
+    const riskTxt =
+      isNum(vol20) || isNum(mdd90)
+        ? `Risk Vol ${isNum(vol20) ? pct(vol20) : "N/A"}, MDD ${isNum(mdd90) ? pct(mdd90) : "N/A"}`
+        : "Risk N/A";
+
+    const autoSummary = `${revTxt} / ${opmTxt} / ${fcfmTxt} / ${fcfTxt} / ${riskTxt}`;
 
     const confidence = pickConfidence(coverage);
 
@@ -310,20 +419,15 @@ export async function GET(req: Request) {
       sector: {
         sector,
         source: sectorInfo?.source ?? "unknown",
-        weights_used: weights,
+        weights_fund_bucket: FUND,
+        weights_used: { growth: wg, margin: wm, value: wv, risk: RISK_W },
         dist_asof: dist?.generated_at_utc ?? null,
       },
-      growth: { used: used.growth, weight: weights.growth, revenue_cagr: revCagr, score: Math.round(growthScore) },
-      margin: {
-        used: used.margin,
-        weight: weights.margin,
-        op_margin: opMargin,
-        fcf_margin: fcfMargin,
-        score: Math.round(marginScore),
-      },
+      growth: { used: used.growth, weight: wg, revenue_cagr: revCagr, score: Math.round(growthScore) },
+      margin: { used: used.margin, weight: wm, op_margin: opMargin, fcf_margin: fcfMargin, score: Math.round(marginScore) },
       value: {
         used: used.value,
-        weight: weights.value,
+        weight: wv,
         mode: "sector_percentile",
         pe: pe0,
         ps: ps0,
@@ -333,12 +437,19 @@ export async function GET(req: Request) {
         ps_percentile: psPct,
         score: Math.round(valueScore),
       },
+      risk: {
+        used: used.risk,
+        weight: RISK_W,
+        vol_20d: vol20,
+        mdd_90d: mdd90,
+        score: Math.round(riskScore),
+      },
       coverage: {
         used_total_weight: usedTotalWeight,
         coverage: Number(coverage.toFixed(2)),
         penalty_factor: Number(penaltyFactor.toFixed(2)),
         score_norm: Math.round(scoreNorm),
-        raw_total: Math.round(growthScore + marginScore + valueScore),
+        raw_total: Math.round(growthScore + marginScore + valueScore + riskScore),
       },
     };
 
@@ -349,14 +460,6 @@ export async function GET(req: Request) {
       signal,
       score: scoreFinal,
       confidence,
-
-      source: {
-        financials_generated_at_utc: fin.generated_at_utc,
-        financials_note: fin.source_note ?? "",
-        multiples_source: "finnhub",
-        sector_source: sectorInfo?.source ?? "unknown",
-        sector_dist_url: process.env.SECTOR_DIST_URL ? "set" : "missing",
-      },
 
       diagnostics: {
         score_norm: scoreNorm,
@@ -375,6 +478,7 @@ export async function GET(req: Request) {
         fcf_trend: fcfTrend,
         pe: pe0,
         ps: ps0,
+        risk: { vol_20d: vol20, mdd_90d: mdd90 },
         auto: autoSummary,
       },
 
