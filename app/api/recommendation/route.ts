@@ -26,20 +26,16 @@ type SectorPayload = {
 
 type SectorDist = {
   generated_at_utc: string;
-  sectors: Record<
-    string,
-    {
-      pe: number[];
-      ps: number[];
-    }
-  >;
+  sectors: Record<string, { pe: number[]; ps: number[] }>;
 };
 
 type Candle = {
-  c: number[]; // close
-  t: number[]; // unix timestamps
+  c: number[];
+  t: number[];
   s: string; // "ok" | "no_data"
 };
+
+const REVALIDATE_10M = 600;
 
 function isNum(x: any): x is number {
   return typeof x === "number" && Number.isFinite(x);
@@ -65,14 +61,10 @@ function scaleLinear(x: number, x0: number, x1: number) {
   return clamp((x - x0) / (x1 - x0), 0, 1);
 }
 
-// best -> 1, worst -> 0 (lower is better)
 function scaleInverse(x: number, best: number, worst: number) {
   return clamp((worst - x) / (worst - best), 0, 1);
 }
 
-/**
- * Guardrail: 멀티플 왜곡 케이스
- */
 function sanitizeMultiples(pe: number | null, ps: number | null) {
   const out = { pe, ps, notes: [] as string[] };
   if (isNum(out.ps) && out.ps > 40) {
@@ -92,9 +84,6 @@ function pickConfidence(coverage: number) {
   return "LOW";
 }
 
-/**
- * 섹터별 가중치(합=100)
- */
 function sectorWeights(sectorRaw: string | null | undefined) {
   const sector = (sectorRaw || "Unknown").toLowerCase();
   let w = { growth: 35, margin: 35, value: 30 };
@@ -122,8 +111,6 @@ function sectorWeights(sectorRaw: string | null | undefined) {
   return w;
 }
 
-// ---- percentile helper ----
-// returns percentile in [0,1] where 0=cheapest (low multiple), 1=most expensive
 function percentile(sortedAsc: number[], x: number): number | null {
   if (!Array.isArray(sortedAsc) || sortedAsc.length < 10) return null;
   if (!isNum(x)) return null;
@@ -140,11 +127,14 @@ function percentile(sortedAsc: number[], x: number): number | null {
   return rank / (n - 1);
 }
 
+// ✅ 외부 JSON(깃허브 raw)은 10분 캐시
 async function loadSectorDist(): Promise<SectorDist | null> {
   const url = process.env.SECTOR_DIST_URL;
   if (!url) return null;
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetch(url, {
+      next: { revalidate: REVALIDATE_10M },
+    });
     if (!r.ok) return null;
     return (await r.json()) as SectorDist;
   } catch {
@@ -152,19 +142,21 @@ async function loadSectorDist(): Promise<SectorDist | null> {
   }
 }
 
-// ---- Risk: Finnhub candle ----
+// ✅ Finnhub candle도 10분 캐시
 async function fetchCandle(ticker: string): Promise<Candle | null> {
   const key = process.env.FINNHUB_API_KEY;
   if (!key) return null;
 
   const now = Math.floor(Date.now() / 1000);
-  const from = now - 220 * 24 * 3600; // 약 220일(영업일 150~170개 정도 확보)
+  const from = now - 220 * 24 * 3600;
   const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(
     ticker
   )}&resolution=D&from=${from}&to=${now}&token=${encodeURIComponent(key)}`;
 
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetch(url, {
+      next: { revalidate: REVALIDATE_10M },
+    });
     if (!r.ok) return null;
     const j = (await r.json()) as Candle;
     if (!j || j.s !== "ok" || !Array.isArray(j.c) || j.c.length < 30) return null;
@@ -182,10 +174,8 @@ function std(arr: number[]) {
 }
 
 function computeRisk(closes: number[]) {
-  // returns: vol_20d (annualized), mdd_90d
   if (!Array.isArray(closes) || closes.length < 30) return null;
 
-  // daily returns
   const rets: number[] = [];
   for (let i = 1; i < closes.length; i++) {
     const a = closes[i - 1];
@@ -194,16 +184,15 @@ function computeRisk(closes: number[]) {
     rets.push(b / a - 1);
   }
 
-  // vol: last 20 returns
   const rets20 = rets.slice(-20);
   const s20 = std(rets20);
   const vol20 = s20 === null ? null : s20 * Math.sqrt(252);
 
-  // mdd: last 90 closes
   const c90 = closes.slice(-90);
   if (c90.length < 30) {
     return { vol_20d: vol20, mdd_90d: null };
   }
+
   let peak = c90[0];
   let mdd = 0;
   for (const p of c90) {
@@ -226,12 +215,11 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
-    // 1) financials
+    // 내부 API는 일단 no-store 유지(데이터 최신성/오류 추적 쉬움)
     const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
     if (!finRes.ok) return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
     const fin = (await finRes.json()) as FinancialsPayload;
 
-    // 2) sector (실패해도 Unknown)
     let sectorInfo: SectorPayload | null = null;
     try {
       const secRes = await fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
@@ -243,15 +231,13 @@ export async function GET(req: Request) {
     const sector = sectorInfo?.sector ?? "Unknown";
     const w0 = sectorWeights(sector);
 
-    // 3) sector dist (percentile value)
     const dist = await loadSectorDist();
     const secBlock = dist?.sectors?.[sector] || null;
 
-    // 4) risk candle
     const candle = await fetchCandle(ticker);
     const riskRaw = candle ? computeRisk(candle.c) : null;
 
-    // ===== Feature engineering =====
+    // ===== feature engineering =====
     const rows = [...(fin.rows || [])].sort((a, b) => a.year - b.year);
     const latest = rows[rows.length - 1] || null;
     const prev = rows.length >= 2 ? rows[rows.length - 2] : null;
@@ -277,7 +263,6 @@ export async function GET(req: Request) {
       fcfTrend = trend(Math.abs(prev.fcf), Math.abs(latest.fcf)) as any;
     }
 
-    // multiples (from finnhub)
     const pe0 = fin.multiples?.pe ?? null;
     const ps0 = fin.multiples?.ps ?? null;
     const mult = sanitizeMultiples(pe0, ps0);
@@ -287,26 +272,24 @@ export async function GET(req: Request) {
     const pePct = secBlock && isNum(pe) ? percentile(secBlock.pe || [], pe) : null;
     const psPct = secBlock && isNum(ps) ? percentile(secBlock.ps || [], ps) : null;
 
-    // ===== Weights =====
-    // Fundamentals = 80%, Risk = 20%
+    // ===== weights =====
     const FUND = 80;
     const RISK_W = 20;
 
-    // sector weights scaled into FUND bucket
     const wg = (w0.growth / 100) * FUND;
     const wm = (w0.margin / 100) * FUND;
     const wv = (w0.value / 100) * FUND;
 
     const used = { growth: false, margin: false, value: false, risk: false };
 
-    // Growth score (0~wg)
+    // growth
     let growthScore = 0;
     if (isNum(revCagr)) {
       used.growth = true;
       growthScore = scaleLinear(revCagr, -0.2, 0.3) * wg;
     }
 
-    // Margin score (0~wm): Op 20/35, FCF 15/35 비율 유지
+    // margin
     let marginScore = 0;
     let marginUsed = false;
 
@@ -323,7 +306,7 @@ export async function GET(req: Request) {
     }
     if (marginUsed) used.margin = true;
 
-    // Value score (0~wv): sector percentile (cheap => high)
+    // value (sector percentile)
     let valueScore = 0;
     let valueUsed = false;
 
@@ -340,17 +323,16 @@ export async function GET(req: Request) {
     }
     if (valueUsed) used.value = true;
 
-    // Risk score (0~RISK_W): vol + mdd
+    // risk
     let riskScore = 0;
-    let vol20 = riskRaw?.vol_20d ?? null;
-    let mdd90 = riskRaw?.mdd_90d ?? null;
+    const vol20 = riskRaw?.vol_20d ?? null;
+    const mdd90 = riskRaw?.mdd_90d ?? null;
 
     if (isNum(vol20) || isNum(mdd90)) {
       used.risk = true;
 
-      // default missing handling inside
-      const vol01 = isNum(vol20) ? scaleInverse(vol20, 0.2, 0.8) : null; // 20% best, 80% worst
-      const mdd01 = isNum(mdd90) ? scaleInverse(mdd90, 0.1, 0.5) : null; // 10% best, 50% worst
+      const vol01 = isNum(vol20) ? scaleInverse(vol20, 0.2, 0.8) : null;
+      const mdd01 = isNum(mdd90) ? scaleInverse(mdd90, 0.1, 0.5) : null;
 
       let r01: number | null = null;
       if (vol01 !== null && mdd01 !== null) r01 = 0.6 * vol01 + 0.4 * mdd01;
@@ -364,25 +346,20 @@ export async function GET(req: Request) {
     const usedTotalWeight =
       (used.growth ? wg : 0) + (used.margin ? wm : 0) + (used.value ? wv : 0) + (used.risk ? RISK_W : 0);
 
-    // Normalize (0~100)
     let scoreNorm: number;
     if (usedTotalWeight === 0) scoreNorm = 50;
     else scoreNorm = clamp(Math.round(((growthScore + marginScore + valueScore + riskScore) / usedTotalWeight) * 100), 0, 100);
 
-    // Coverage penalty (usedTotalWeight is out of 100)
     const coverage = usedTotalWeight / 100;
     const penaltyFactor = 0.7 + 0.3 * coverage;
+    const scoreFinal = clamp(Math.round(scoreNorm * penaltyFactor), 0, 100);
 
-    let scoreFinal = clamp(Math.round(scoreNorm * penaltyFactor), 0, 100);
-
-    // Signal
     let signal: "BUY" | "WATCH" | "HOLD" | "AVOID" = "WATCH";
     if (scoreFinal >= 70) signal = "BUY";
     else if (scoreFinal >= 55) signal = "WATCH";
     else if (scoreFinal >= 40) signal = "HOLD";
     else signal = "AVOID";
 
-    // Low conf adjustment
     const lowConf = coverage < 0.6;
     const baseSignal = signal;
 
@@ -398,69 +375,53 @@ export async function GET(req: Request) {
 
     if (lowConf && signal !== "WATCH") signal = "WATCH";
 
-    // Auto summary
     const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
-    const revTxt = isNum(revCagr) ? `Rev CAGR ${pct(revCagr)}` : "Rev CAGR N/A";
-    const opmTxt = isNum(opMargin) ? `OpM ${pct(opMargin)}` : "OpM N/A";
-    const fcfmTxt = isNum(fcfMargin) ? `FCF M ${pct(fcfMargin)}` : "FCF M N/A";
-    const fcfTxt = `FCF Trend ${fcfTrend}`;
-
-    const riskTxt =
+    const autoSummary = [
+      isNum(revCagr) ? `Rev CAGR ${pct(revCagr)}` : "Rev CAGR N/A",
+      isNum(opMargin) ? `OpM ${pct(opMargin)}` : "OpM N/A",
+      isNum(fcfMargin) ? `FCF M ${pct(fcfMargin)}` : "FCF M N/A",
+      `FCF Trend ${fcfTrend}`,
       isNum(vol20) || isNum(mdd90)
         ? `Risk Vol ${isNum(vol20) ? pct(vol20) : "N/A"}, MDD ${isNum(mdd90) ? pct(mdd90) : "N/A"}`
-        : "Risk N/A";
-
-    const autoSummary = `${revTxt} / ${opmTxt} / ${fcfmTxt} / ${fcfTxt} / ${riskTxt}`;
+        : "Risk N/A",
+    ].join(" / ");
 
     const confidence = pickConfidence(coverage);
 
-    // Explain
     const explain = {
+      cache: { revalidate_seconds: REVALIDATE_10M },
       sector: {
         sector,
         source: sectorInfo?.source ?? "unknown",
-        weights_fund_bucket: FUND,
-        weights_used: { growth: wg, margin: wm, value: wv, risk: RISK_W },
         dist_asof: dist?.generated_at_utc ?? null,
       },
-      growth: { used: used.growth, weight: wg, revenue_cagr: revCagr, score: Math.round(growthScore) },
-      margin: { used: used.margin, weight: wm, op_margin: opMargin, fcf_margin: fcfMargin, score: Math.round(marginScore) },
+      weights_used: { growth: wg, margin: wm, value: wv, risk: RISK_W },
+      growth: { used: used.growth, revenue_cagr: revCagr, score: Math.round(growthScore) },
+      margin: { used: used.margin, op_margin: opMargin, fcf_margin: fcfMargin, score: Math.round(marginScore) },
       value: {
         used: used.value,
-        weight: wv,
         mode: "sector_percentile",
         pe: pe0,
         ps: ps0,
-        pe_scored: pe,
-        ps_scored: ps,
         pe_percentile: pePct,
         ps_percentile: psPct,
         score: Math.round(valueScore),
       },
-      risk: {
-        used: used.risk,
-        weight: RISK_W,
-        vol_20d: vol20,
-        mdd_90d: mdd90,
-        score: Math.round(riskScore),
-      },
+      risk: { used: used.risk, vol_20d: vol20, mdd_90d: mdd90, score: Math.round(riskScore) },
       coverage: {
         used_total_weight: usedTotalWeight,
         coverage: Number(coverage.toFixed(2)),
         penalty_factor: Number(penaltyFactor.toFixed(2)),
         score_norm: Math.round(scoreNorm),
-        raw_total: Math.round(growthScore + marginScore + valueScore + riskScore),
       },
     };
 
     return NextResponse.json({
       ticker,
       generated_at_utc: new Date().toISOString(),
-
       signal,
       score: scoreFinal,
       confidence,
-
       diagnostics: {
         score_norm: scoreNorm,
         coverage: Number(coverage.toFixed(2)),
@@ -469,19 +430,13 @@ export async function GET(req: Request) {
         base_signal: baseSignal,
         note: fin.source_note ?? "",
       },
-
       summary: {
         sector,
-        revenue_cagr: revCagr,
-        op_margin: opMargin,
-        fcf_margin: fcfMargin,
-        fcf_trend: fcfTrend,
         pe: pe0,
         ps: ps0,
         risk: { vol_20d: vol20, mdd_90d: mdd90 },
         auto: autoSummary,
       },
-
       explain,
       warnings,
     });
