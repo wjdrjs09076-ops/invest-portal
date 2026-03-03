@@ -26,7 +26,7 @@ type SectorPayload = {
 
 type SectorDist = {
   generated_at_utc: string;
-  sectors: Record<string, { pe: number[]; ps: number[] }>;
+  sectors: Record<string, any>; // ✅ 실제 파일 구조가 다를 수 있어 any로 받아서 정규화
 };
 
 type Candle = {
@@ -76,6 +76,29 @@ function scaleLinear(x: number, x0: number, x1: number) {
 
 function scaleInverse(x: number, best: number, worst: number) {
   return clamp((worst - x) / (worst - best), 0, 1);
+}
+
+/**
+ * ✅ sector_dist.json에서 pe/ps가
+ * - number[]
+ * - string[]
+ * - {values:[]}/{list:[]}/{data:[]}
+ * - null/undefined 섞임
+ * 같은 케이스가 있어도 "숫자 배열"로 강제 정규화
+ * + percentile은 sortedAsc 전제라 여기서 정렬까지 해줌
+ */
+function toNumArray(v: any): number[] {
+  const raw =
+    (Array.isArray(v) ? v : null) ??
+    (Array.isArray(v?.values) ? v.values : null) ??
+    (Array.isArray(v?.list) ? v.list : null) ??
+    (Array.isArray(v?.data) ? v.data : null) ??
+    [];
+
+  return raw
+    .map((x: any) => (typeof x === "string" ? Number(x) : x))
+    .filter((x: any) => typeof x === "number" && Number.isFinite(x))
+    .sort((a: number, b: number) => a - b);
 }
 
 function sanitizeMultiples(pe: number | null, ps: number | null) {
@@ -135,6 +158,7 @@ function percentile(sortedAsc: number[], x: number): number | null {
     if (sortedAsc[mid] < x) lo = mid + 1;
     else hi = mid;
   }
+
   const n = sortedAsc.length;
   const rank = clamp(lo, 0, n - 1);
   return rank / (n - 1); // 0=cheapest, 1=most expensive
@@ -194,6 +218,7 @@ async function fetchCandle(ticker: string): Promise<Candle | null> {
 
   const now = Math.floor(Date.now() / 1000);
   const from = now - 220 * 24 * 3600;
+
   const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(
     ticker
   )}&resolution=D&from=${from}&to=${now}&token=${encodeURIComponent(key)}`;
@@ -276,10 +301,17 @@ export async function GET(req: Request) {
 
     const dist = await loadSectorDist();
     const secKey = sector?.trim();
+
+    // ✅ key 매칭 강화: 원문/소문자/대문자 다 시도
     const secBlock =
       (secKey && dist?.sectors?.[secKey]) ||
       (secKey && dist?.sectors?.[secKey.toLowerCase()]) ||
+      (secKey && dist?.sectors?.[secKey.toUpperCase()]) ||
       null;
+
+    // ✅ sectorDist 정규화된 멀티플 배열
+    const peArr = secBlock ? toNumArray((secBlock as any).pe) : [];
+    const psArr = secBlock ? toNumArray((secBlock as any).ps) : [];
 
     const candle = await fetchCandle(ticker);
     const riskRaw = candle ? computeRisk(candle.c) : null;
@@ -320,8 +352,9 @@ export async function GET(req: Request) {
     const pe = mult.pe;
     const ps = mult.ps;
 
-    const pePct = secBlock && isNum(pe) ? percentile(secBlock.pe || [], pe) : null; // 0=cheap
-    const psPct = secBlock && isNum(ps) ? percentile(secBlock.ps || [], ps) : null;
+    // ✅ percentile 계산: 정규화된 peArr/psArr 사용
+    const pePct = peArr.length && isNum(pe) ? percentile(peArr, pe) : null; // 0=cheap
+    const psPct = psArr.length && isNum(ps) ? percentile(psArr, ps) : null;
 
     // ✅ 섹터 밸류 요약 percentile(0=cheap, 1=expensive)
     const sectorValuePct =
@@ -430,10 +463,14 @@ export async function GET(req: Request) {
 
     const warnings: string[] = [];
     if (mult.notes.length) warnings.push(...mult.notes);
+
     if (!dist) warnings.push("Sector distribution not loaded; Value percentile may be unavailable.");
     if (!secBlock) warnings.push(`No sector bucket found for "${sector}" in sector_dist.json.`);
     if (!candle) warnings.push("Price candles unavailable; RiskScore skipped.");
     if (!snapshot) warnings.push("Score snapshot not loaded; S&P500 relative metrics unavailable.");
+
+    // ✅ 디버그: 섹터 dist 배열 길이 확인 (원인 확인 후 나중에 제거해도 됨)
+    warnings.push(`SectorDist sizes: pe=${peArr.length}, ps=${psArr.length} (sector="${sector}")`);
 
     if (coverage === 0) warnings.push("No usable signals; neutral score used.");
     else if (coverage < 0.35) warnings.push("Very low coverage; treat as WATCH (not a strong call).");
@@ -484,7 +521,7 @@ export async function GET(req: Request) {
       relative: {
         snapshot_asof: snapshot?.generated_at_utc ?? null,
         sp500_avg_score: sp500AvgScore,
-        score_percentile_in_sp500: scorePctInSp500, // 0 bottom -> 1 top
+        score_percentile_in_sp500: scorePctInSp500,
       },
     };
 
@@ -497,7 +534,7 @@ export async function GET(req: Request) {
 
       // ✅ 상대 비교 결과(프론트에서 바로 쓰기 좋게 summary 옆에 분리)
       relative: {
-        sector_value_percentile: sectorValuePct, // 0 cheap ~ 1 expensive (섹터 내 멀티플 상대 위치)
+        sector_value_percentile: sectorValuePct, // 0 cheap ~ 1 expensive
         sp500_avg_score: sp500AvgScore,
         score_percentile_in_sp500: scorePctInSp500, // 0 bottom ~ 1 top
         snapshot_asof: snapshot?.generated_at_utc ?? null,
@@ -511,6 +548,7 @@ export async function GET(req: Request) {
         base_signal: baseSignal,
         note: fin.source_note ?? "",
       },
+
       summary: {
         sector,
         pe: pe0,
@@ -518,10 +556,14 @@ export async function GET(req: Request) {
         risk: { vol_20d: vol20, mdd_90d: mdd90 },
         auto: autoSummary,
       },
+
       explain,
       warnings,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: "recommendation failed", message: String(err?.message || err) }, { status: 500 });
+    return NextResponse.json(
+      { error: "recommendation failed", message: String(err?.message || err) },
+      { status: 500 }
+    );
   }
 }
