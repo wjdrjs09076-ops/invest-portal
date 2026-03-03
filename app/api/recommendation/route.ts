@@ -125,7 +125,7 @@ function sectorWeights(sectorRaw: string | null | undefined) {
 }
 
 function percentile(sortedAsc: number[], x: number): number | null {
-  if (!Array.isArray(sortedAsc) || sortedAsc.length < 10) return null;
+  if (!Array.isArray(sortedAsc) || sortedAsc.length < 3) return null;
   if (!isNum(x)) return null;
 
   let lo = 0;
