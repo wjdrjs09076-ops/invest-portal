@@ -56,10 +56,28 @@ function completenessScore(r: Row) {
 }
 
 function badgeTone(filled: number) {
-  // 3개면 good, 2개면 ok, 0~1이면 low
   if (filled >= 3) return "bg-green-50 text-green-700 border-green-200";
   if (filled >= 2) return "bg-yellow-50 text-yellow-700 border-yellow-200";
   return "bg-gray-50 text-gray-700 border-gray-200";
+}
+
+// ✅ SVG mini line chart (Revenue trend)
+function buildMiniLinePath(values: number[], w = 260, h = 76, pad = 8) {
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const span = maxV - minV || 1;
+
+  const xScale = (i: number) => pad + (i * (w - pad * 2)) / (values.length - 1 || 1);
+  const yScale = (v: number) => pad + (h - pad * 2) * (1 - (v - minV) / span);
+
+  let d = "";
+  values.forEach((v, i) => {
+    const x = xScale(i);
+    const y = yScale(v);
+    d += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  });
+
+  return { d, minV, maxV, w, h };
 }
 
 export default function FinancialsClient({ ticker }: { ticker: string }) {
@@ -91,10 +109,9 @@ export default function FinancialsClient({ ticker }: { ticker: string }) {
 
   const table = useMemo(() => {
     const rows = data?.rows || [];
-    // 최신 -> 과거 정렬되어 있다고 가정, 안전하게 다시 정렬
+    // 최신 -> 과거 정렬
     const sorted = [...rows].sort((a, b) => b.year - a.year);
 
-    // YoY/마진은 "바로 전 연도"가 있을 때만 계산
     return sorted.map((r, idx) => {
       const prev = sorted[idx + 1] || null;
 
@@ -110,6 +127,23 @@ export default function FinancialsClient({ ticker }: { ticker: string }) {
     });
   }, [data]);
 
+  // ✅ 그래프용: 최근 3년 매출 (과거->최근)
+  const revChart = useMemo(() => {
+    if (!data?.rows?.length) return null;
+
+    const sortedAsc = [...data.rows].sort((a, b) => a.year - b.year);
+    const last3 = sortedAsc.slice(-3);
+
+    const years = last3.map((r) => r.year);
+    const vals = last3.map((r) => (isNum(r.revenue) ? r.revenue : null));
+
+    if (vals.some((v) => v === null)) return { years, vals, path: null as any };
+
+    const vNum = vals as number[];
+    const path = buildMiniLinePath(vNum);
+    return { years, vals, path };
+  }, [data]);
+
   return (
     <section className="rounded-xl border p-4">
       <div className="flex items-start justify-between gap-3">
@@ -119,9 +153,7 @@ export default function FinancialsClient({ ticker }: { ticker: string }) {
             Source: Finnhub. Some fields may be unavailable depending on the filing format.
           </p>
         </div>
-        <div className="text-xs text-gray-500">
-          {data?.generated_at_utc ? data.generated_at_utc : ""}
-        </div>
+        <div className="text-xs text-gray-500">{data?.generated_at_utc ? data.generated_at_utc : ""}</div>
       </div>
 
       {err && (
@@ -130,12 +162,43 @@ export default function FinancialsClient({ ticker }: { ticker: string }) {
         </div>
       )}
 
-      {!err && !data && (
-        <div className="mt-3 text-sm text-gray-500">Loading...</div>
-      )}
+      {!err && !data && <div className="mt-3 text-sm text-gray-500">Loading...</div>}
 
       {!err && data && (
         <>
+          {/* ✅ Revenue trend mini chart */}
+          <div className="mt-4 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Revenue Trend</div>
+                <div className="text-xs text-gray-500">Last 3 years</div>
+              </div>
+
+              {revChart?.path ? (
+                <div className="text-xs text-gray-500 text-right">
+                  <div>
+                    Min {fmtUSD(revChart.path.minV)} · Max {fmtUSD(revChart.path.maxV)}
+                  </div>
+                  <div>
+                    {revChart.years[0]} → {revChart.years[revChart.years.length - 1]}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-gray-500">Not enough revenue data</div>
+              )}
+            </div>
+
+            <div className="mt-2">
+              {revChart?.path ? (
+                <svg width={revChart.path.w} height={revChart.path.h} className="block">
+                  <path d={revChart.path.d} fill="none" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              ) : (
+                <div className="text-xs text-gray-500">Revenue N/A for at least one year</div>
+              )}
+            </div>
+          </div>
+
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -164,33 +227,13 @@ export default function FinancialsClient({ ticker }: { ticker: string }) {
                   <tr key={r.year} className="border-b last:border-b-0">
                     <td className="py-2 font-medium">{r.year}</td>
 
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtUSD(r.revenue)}
-                    </td>
-
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtUSD(r.opIncome)}
-                    </td>
-
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtUSD(r.fcf)}
-                    </td>
-
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtPct(r.revY)}
-                    </td>
-
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtPct(r.fcfY)}
-                    </td>
-
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtPct(r.opm)}
-                    </td>
-
-                    <td className="py-2 text-right tabular-nums">
-                      {fmtPct(r.fcfm)}
-                    </td>
+                    <td className="py-2 text-right tabular-nums">{fmtUSD(r.revenue)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtUSD(r.opIncome)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtUSD(r.fcf)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtPct(r.revY)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtPct(r.fcfY)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtPct(r.opm)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtPct(r.fcfm)}</td>
 
                     <td className="py-2 text-right">
                       <span
