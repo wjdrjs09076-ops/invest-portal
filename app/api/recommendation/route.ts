@@ -275,7 +275,11 @@ export async function GET(req: Request) {
     const w0 = sectorWeights(sector);
 
     const dist = await loadSectorDist();
-    const secBlock = dist?.sectors?.[sector] || null;
+    const secKey = sector?.trim();
+    const secBlock =
+      (secKey && dist?.sectors?.[secKey]) ||
+      (secKey && dist?.sectors?.[secKey.toLowerCase()]) ||
+      null;
 
     const candle = await fetchCandle(ticker);
     const riskRaw = candle ? computeRisk(candle.c) : null;
