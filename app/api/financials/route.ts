@@ -56,13 +56,28 @@ function toUpperTicker(t: string) {
 
 async function loadFundamentalsMap(): Promise<FundamentalsMap | null> {
   const url = process.env.FUNDAMENTALS_URL;
+
+  console.log("[financials] FUNDAMENTALS_URL =", url);
+
   if (!url) return null;
 
   try {
     const res = await fetch(url, { next: { revalidate: 600 } });
+
+    console.log("[financials] fundamentals status =", res.status);
+
     if (!res.ok) return null;
-    return (await res.json()) as FundamentalsMap;
-  } catch {
+
+    const json = (await res.json()) as FundamentalsMap;
+
+    console.log(
+      "[financials] fundamentals loaded keys =",
+      Object.keys(json).slice(0, 5)
+    );
+
+    return json;
+  } catch (error) {
+    console.log("[financials] fundamentals fetch failed =", error);
     return null;
   }
 }
