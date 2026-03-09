@@ -26,26 +26,52 @@ type SectorPayload = {
 
 type SectorDist = {
   generated_at_utc: string;
-  sectors: Record<string, any>; // ✅ 실제 파일 구조가 다를 수 있어 any로 받아서 정규화
+  sectors: Record<string, any>;
 };
 
 type Candle = {
   c: number[];
   t: number[];
-  s: string; // "ok" | "no_data"
+  s: string;
+};
+
+type SnapshotItem = {
+  ticker: string;
+  signal?: string;
+  label?: string;
+  score?: number | null;
+  sector?: string;
+  close?: number | null;
+  rsi?: number | null;
+  ret5d?: number | null;
+  ret20d?: number | null;
+  vol20?: number | null;
+  dd60?: number | null;
+  stock_score_raw?: number | null;
+  sector_strength_20d?: number | null;
+  sector_score?: number | null;
+  risk_score?: number | null;
+  final_score_raw?: number | null;
 };
 
 type ScoreSnapshot = {
-  generated_at_utc: string;
-  source?: string;
-  universes: Record<
-    string,
-    {
-      label: string;
-      stats: { n: number; mean: number | null; p10: number | null; p50: number | null; p90: number | null };
-      scores: Record<string, { score: number; confidence?: string; sector?: string }>;
-    }
-  >;
+  generated_at?: string;
+  generated_at_utc?: string;
+  weights?: Record<string, number>;
+  method?: {
+    summary?: string;
+    notes?: string[];
+  };
+  groups?: Array<{
+    key: string;
+    label: string;
+    description?: string;
+    top3: SnapshotItem[];
+    count?: number;
+  }>;
+  sp500?: SnapshotItem[];
+  nasdaq100?: SnapshotItem[];
+  dow30?: SnapshotItem[];
 };
 
 const REVALIDATE_10M = 600;
@@ -78,15 +104,6 @@ function scaleInverse(x: number, best: number, worst: number) {
   return clamp((worst - x) / (worst - best), 0, 1);
 }
 
-/**
- * ✅ sector_dist.json에서 pe/ps가
- * - number[]
- * - string[]
- * - {values:[]}/{list:[]}/{data:[]}
- * - null/undefined 섞임
- * 같은 케이스가 있어도 "숫자 배열"로 강제 정규화
- * + percentile은 sortedAsc 전제라 여기서 정렬까지 해줌
- */
 function toNumArray(v: any): number[] {
   const raw =
     (Array.isArray(v) ? v : null) ??
@@ -103,6 +120,7 @@ function toNumArray(v: any): number[] {
 
 function sanitizeMultiples(pe: number | null, ps: number | null) {
   const out = { pe, ps, notes: [] as string[] };
+
   if (isNum(out.ps) && out.ps > 40) {
     out.notes.push("P/S is extremely high; skipped from scoring (not comparable).");
     out.ps = null;
@@ -111,6 +129,7 @@ function sanitizeMultiples(pe: number | null, ps: number | null) {
     out.notes.push("P/E is extremely high; skipped from scoring (not comparable).");
     out.pe = null;
   }
+
   return out;
 }
 
@@ -126,7 +145,13 @@ function sectorWeights(sectorRaw: string | null | undefined) {
 
   const is = (k: string) => sector.includes(k);
 
-  if (is("technology") || is("information technology") || is("communication") || is("software") || is("internet")) {
+  if (
+    is("technology") ||
+    is("information technology") ||
+    is("communication") ||
+    is("software") ||
+    is("internet")
+  ) {
     w = { growth: 40, margin: 30, value: 30 };
   } else if (
     is("utilities") ||
@@ -161,10 +186,9 @@ function percentile(sortedAsc: number[], x: number): number | null {
 
   const n = sortedAsc.length;
   const rank = clamp(lo, 0, n - 1);
-  return rank / (n - 1); // 0=cheapest, 1=most expensive
+  return rank / (n - 1);
 }
 
-// ✅ 외부 JSON(깃허브 raw)은 10분 캐시
 async function loadSectorDist(): Promise<SectorDist | null> {
   const url = process.env.SECTOR_DIST_URL;
   if (!url) return null;
@@ -177,7 +201,6 @@ async function loadSectorDist(): Promise<SectorDist | null> {
   }
 }
 
-// ✅ S&P500 점수 스냅샷도 10분 캐시 (invest-data에서 생성한 파일)
 async function loadScoreSnapshot(): Promise<ScoreSnapshot | null> {
   const url = process.env.SCORE_SNAPSHOT_URL;
   if (!url) return null;
@@ -190,28 +213,48 @@ async function loadScoreSnapshot(): Promise<ScoreSnapshot | null> {
   }
 }
 
-// map: ticker->score 를 기반으로 percentile 계산 (0=하위, 1=상위)
-function scorePercentileFromMap(map: Record<string, { score: number }>, score: number): number | null {
-  const arr = Object.values(map)
-    .map((x) => x.score)
-    .filter((x) => typeof x === "number" && Number.isFinite(x))
-    .sort((a, b) => a - b);
+function findTickerInSnapshot(snapshot: ScoreSnapshot | null, ticker: string) {
+  if (!snapshot) return null;
 
-  if (arr.length < 30) return null;
+  const pools: SnapshotItem[][] = [
+    Array.isArray(snapshot.sp500) ? snapshot.sp500 : [],
+    Array.isArray(snapshot.nasdaq100) ? snapshot.nasdaq100 : [],
+    Array.isArray(snapshot.dow30) ? snapshot.dow30 : [],
+  ];
 
-  let lo = 0;
-  let hi = arr.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (arr[mid] < score) lo = mid + 1;
-    else hi = mid;
+  for (const pool of pools) {
+    const found = pool.find((x) => (x.ticker || "").toUpperCase() === ticker.toUpperCase());
+    if (found) return found;
   }
-  const n = arr.length;
-  const rank = clamp(lo, 0, n - 1);
-  return rank / (n - 1);
+
+  if (Array.isArray(snapshot.groups)) {
+    for (const g of snapshot.groups) {
+      const found = (g.top3 || []).find((x) => (x.ticker || "").toUpperCase() === ticker.toUpperCase());
+      if (found) return found;
+    }
+  }
+
+  return null;
 }
 
-// ✅ Finnhub candle도 10분 캐시
+function findTickerUniverse(snapshot: ScoreSnapshot | null, ticker: string) {
+  if (!snapshot) return null;
+
+  const t = ticker.toUpperCase();
+
+  if (Array.isArray(snapshot.sp500) && snapshot.sp500.some((x) => (x.ticker || "").toUpperCase() === t)) {
+    return "sp500";
+  }
+  if (Array.isArray(snapshot.nasdaq100) && snapshot.nasdaq100.some((x) => (x.ticker || "").toUpperCase() === t)) {
+    return "nasdaq100";
+  }
+  if (Array.isArray(snapshot.dow30) && snapshot.dow30.some((x) => (x.ticker || "").toUpperCase() === t)) {
+    return "dow30";
+  }
+
+  return null;
+}
+
 async function fetchCandle(ticker: string): Promise<Candle | null> {
   const key = process.env.FINNHUB_API_KEY;
   if (!key) return null;
@@ -273,6 +316,107 @@ function computeRisk(closes: number[]) {
   return { vol_20d: vol20, mdd_90d: mdd };
 }
 
+function pct(x: number | null) {
+  return isNum(x) ? `${(x * 100).toFixed(1)}%` : "N/A";
+}
+
+function yoy(prev: number, latest: number) {
+  if (prev <= 0 || latest <= 0) return null;
+  return latest / prev - 1;
+}
+
+/**
+ * 성장률 fallback:
+ * 1) 3Y CAGR
+ * 2) 2Y CAGR
+ * 3) 1Y YoY
+ */
+function computeRevenueGrowth(rows: Row[]) {
+  const valid = rows.filter((r) => isNum(r.revenue) && (r.revenue as number) > 0);
+  if (valid.length < 2) {
+    return {
+      value: null as number | null,
+      method: "unavailable",
+      note: "Not enough positive revenue history",
+    };
+  }
+
+  const latest = valid[valid.length - 1];
+  const prev = valid.length >= 2 ? valid[valid.length - 2] : null;
+  const oldest = valid[0];
+
+  if (valid.length >= 4 && oldest && latest) {
+    const years = latest.year - oldest.year;
+    const v = cagr(oldest.revenue as number, latest.revenue as number, years);
+    if (isNum(v)) {
+      return {
+        value: v,
+        method: "revenue_3y_cagr",
+        note: `Using ${years}Y revenue CAGR`,
+      };
+    }
+  }
+
+  if (valid.length >= 3) {
+    const a = valid[valid.length - 3];
+    const b = latest;
+    const years = b.year - a.year;
+    const v = cagr(a.revenue as number, b.revenue as number, years);
+    if (isNum(v)) {
+      return {
+        value: v,
+        method: "revenue_2y_cagr",
+        note: `Using ${years}Y revenue CAGR fallback`,
+      };
+    }
+  }
+
+  if (prev && latest) {
+    const v = yoy(prev.revenue as number, latest.revenue as number);
+    if (isNum(v)) {
+      return {
+        value: v,
+        method: "revenue_yoy",
+        note: "Using 1Y revenue growth fallback",
+      };
+    }
+  }
+
+  return {
+    value: null as number | null,
+    method: "unavailable",
+    note: "Revenue growth unavailable",
+  };
+}
+
+/**
+ * margin fallback:
+ * op margin / fcf margin 각각 독립 계산
+ * 있는 값만 써서 margin score 구성
+ */
+function computeMargins(rows: Row[]) {
+  const latest = rows[rows.length - 1] || null;
+  if (!latest || !isNum(latest.revenue) || latest.revenue === 0) {
+    return {
+      opMargin: null as number | null,
+      fcfMargin: null as number | null,
+      note: "Revenue unavailable for margin calculation",
+    };
+  }
+
+  const revenue = latest.revenue as number;
+  const opMargin = isNum(latest.opIncome) ? (latest.opIncome as number) / revenue : null;
+  const fcfMargin = isNum(latest.fcf) ? (latest.fcf as number) / revenue : null;
+
+  let note = "";
+  if (opMargin === null && fcfMargin === null) note = "Both operating margin and FCF margin unavailable";
+  else if (opMargin === null) note = "Operating margin unavailable; using FCF margin only";
+  else if (fcfMargin === null) note = "FCF margin unavailable; using operating margin only";
+  else note = "Using operating margin and FCF margin";
+
+  return { opMargin, fcfMargin, note };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickerRaw = searchParams.get("ticker");
@@ -283,63 +427,56 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
-    // 내부 API는 no-store 유지
-    const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
-    if (!finRes.ok) return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
+    const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, {
+      cache: "no-store",
+    });
+    if (!finRes.ok) {
+      return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
+    }
     const fin = (await finRes.json()) as FinancialsPayload;
 
     let sectorInfo: SectorPayload | null = null;
     try {
-      const secRes = await fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, { cache: "no-store" });
+      const secRes = await fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, {
+        cache: "no-store",
+      });
       if (secRes.ok) sectorInfo = (await secRes.json()) as SectorPayload;
     } catch {
       sectorInfo = null;
     }
 
-    const sector = sectorInfo?.sector ?? "Unknown";
+    const snapshot = await loadScoreSnapshot();
+    const snapshotItem = findTickerInSnapshot(snapshot, ticker);
+    const snapshotUniverse = findTickerUniverse(snapshot, ticker);
+
+    const sector = sectorInfo?.sector ?? snapshotItem?.sector ?? "Unknown";
     const w0 = sectorWeights(sector);
 
     const dist = await loadSectorDist();
     const secKey = sector?.trim();
 
-    // ✅ key 매칭 강화: 원문/소문자/대문자 다 시도
     const secBlock =
       (secKey && dist?.sectors?.[secKey]) ||
       (secKey && dist?.sectors?.[secKey.toLowerCase()]) ||
       (secKey && dist?.sectors?.[secKey.toUpperCase()]) ||
       null;
 
-    // ✅ sectorDist 정규화된 멀티플 배열
     const peArr = secBlock ? toNumArray((secBlock as any).pe) : [];
     const psArr = secBlock ? toNumArray((secBlock as any).ps) : [];
 
     const candle = await fetchCandle(ticker);
     const riskRaw = candle ? computeRisk(candle.c) : null;
 
-    // ✅ S&P500 점수 스냅샷 로드
-    const snapshot = await loadScoreSnapshot();
-    const sp500 = snapshot?.universes?.["sp500"] || null;
-
-    // ===== feature engineering =====
     const rows = [...(fin.rows || [])].sort((a, b) => a.year - b.year);
     const latest = rows[rows.length - 1] || null;
     const prev = rows.length >= 2 ? rows[rows.length - 2] : null;
-    const oldest = rows[0] || null;
 
-    let revCagr: number | null = null;
-    if (oldest && latest && isNum(oldest.revenue) && isNum(latest.revenue) && rows.length >= 3) {
-      revCagr = cagr(oldest.revenue, latest.revenue, rows.length - 1);
-    } else if (prev && latest && isNum(prev.revenue) && isNum(latest.revenue) && prev.revenue !== 0) {
-      revCagr = latest.revenue / prev.revenue - 1;
-    }
+    const growthInfo = computeRevenueGrowth(rows);
+    const revGrowth = growthInfo.value;
 
-    const opMargin =
-      latest && isNum(latest.opIncome) && isNum(latest.revenue) && latest.revenue !== 0
-        ? latest.opIncome / latest.revenue
-        : null;
-
-    const fcfMargin =
-      latest && isNum(latest.fcf) && isNum(latest.revenue) && latest.revenue !== 0 ? latest.fcf / latest.revenue : null;
+    const marginInfo = computeMargins(rows);
+    const opMargin = marginInfo.opMargin;
+    const fcfMargin = marginInfo.fcfMargin;
 
     let fcfTrend: "UP" | "DOWN" | "FLAT" | "N/A" = "N/A";
     if (prev && latest && isNum(prev.fcf) && isNum(latest.fcf) && prev.fcf !== 0) {
@@ -352,15 +489,18 @@ export async function GET(req: Request) {
     const pe = mult.pe;
     const ps = mult.ps;
 
-    // ✅ percentile 계산: 정규화된 peArr/psArr 사용
-    const pePct = peArr.length && isNum(pe) ? percentile(peArr, pe) : null; // 0=cheap
+    const pePct = peArr.length && isNum(pe) ? percentile(peArr, pe) : null;
     const psPct = psArr.length && isNum(ps) ? percentile(psArr, ps) : null;
 
-    // ✅ 섹터 밸류 요약 percentile(0=cheap, 1=expensive)
     const sectorValuePct =
-      pePct !== null && psPct !== null ? (pePct + psPct) / 2 : pePct !== null ? pePct : psPct !== null ? psPct : null;
+      pePct !== null && psPct !== null
+        ? (pePct + psPct) / 2
+        : pePct !== null
+        ? pePct
+        : psPct !== null
+        ? psPct
+        : null;
 
-    // ===== weights =====
     const FUND = 80;
     const RISK_W = 20;
 
@@ -370,14 +510,12 @@ export async function GET(req: Request) {
 
     const used = { growth: false, margin: false, value: false, risk: false };
 
-    // growth
     let growthScore = 0;
-    if (isNum(revCagr)) {
+    if (isNum(revGrowth)) {
       used.growth = true;
-      growthScore = scaleLinear(revCagr, -0.2, 0.3) * wg;
+      growthScore = scaleLinear(revGrowth, -0.2, 0.3) * wg;
     }
 
-    // margin
     let marginScore = 0;
     let marginUsed = false;
 
@@ -388,13 +526,14 @@ export async function GET(req: Request) {
       marginUsed = true;
       marginScore += scaleLinear(opMargin, 0, 0.25) * opPart;
     }
+
     if (isNum(fcfMargin)) {
       marginUsed = true;
       marginScore += scaleLinear(fcfMargin, 0, 0.2) * fcfPart;
     }
+
     if (marginUsed) used.margin = true;
 
-    // value (sector percentile) — cheap => high score
     let valueScore = 0;
     let valueUsed = false;
 
@@ -405,13 +544,14 @@ export async function GET(req: Request) {
       valueUsed = true;
       valueScore += (1 - pePct) * pePart;
     }
+
     if (psPct !== null) {
       valueUsed = true;
       valueScore += (1 - psPct) * psPart;
     }
+
     if (valueUsed) used.value = true;
 
-    // risk
     let riskScore = 0;
     const vol20 = riskRaw?.vol_20d ?? null;
     const mdd90 = riskRaw?.mdd_90d ?? null;
@@ -432,25 +572,27 @@ export async function GET(req: Request) {
     }
 
     const usedTotalWeight =
-      (used.growth ? wg : 0) + (used.margin ? wm : 0) + (used.value ? wv : 0) + (used.risk ? RISK_W : 0);
+      (used.growth ? wg : 0) +
+      (used.margin ? wm : 0) +
+      (used.value ? wv : 0) +
+      (used.risk ? RISK_W : 0);
 
     let scoreNorm: number;
     if (usedTotalWeight === 0) scoreNorm = 50;
-    else
+    else {
       scoreNorm = clamp(
         Math.round(((growthScore + marginScore + valueScore + riskScore) / usedTotalWeight) * 100),
         0,
         100
       );
+    }
 
     const coverage = usedTotalWeight / 100;
     const penaltyFactor = 0.7 + 0.3 * coverage;
     const scoreFinal = clamp(Math.round(scoreNorm * penaltyFactor), 0, 100);
 
-    // ✅ 상대 비교 계산 (S&P500 평균 / S&P500 내 percentile)
-    const sp500AvgScore = sp500?.stats?.mean ?? null;
-    const scorePctInSp500 =
-      sp500 && sp500.scores ? scorePercentileFromMap(sp500.scores, scoreFinal) : null; // 0=하위, 1=상위
+    const sp500AvgScore = null;
+    const scorePctInSp500 = null;
 
     let signal: "BUY" | "WATCH" | "HOLD" | "AVOID" = "WATCH";
     if (scoreFinal >= 70) signal = "BUY";
@@ -464,13 +606,27 @@ export async function GET(req: Request) {
     const warnings: string[] = [];
     if (mult.notes.length) warnings.push(...mult.notes);
 
-    if (!dist) warnings.push("Sector distribution not loaded; Value percentile may be unavailable.");
+    if (!dist) warnings.push("Sector distribution not loaded; value percentile may be unavailable.");
     if (!secBlock) warnings.push(`No sector bucket found for "${sector}" in sector_dist.json.`);
-    if (!candle) warnings.push("Price candles unavailable; RiskScore skipped.");
-    if (!snapshot) warnings.push("Score snapshot not loaded; S&P500 relative metrics unavailable.");
+    if (!candle) warnings.push("Price candles unavailable; risk score skipped.");
+    if (!snapshot) warnings.push("Score snapshot not loaded; relative market snapshot unavailable.");
+    if (snapshot && !snapshotItem) warnings.push("Ticker not found in current score_snapshot top selections.");
+    if (snapshot && snapshotItem) {
+      warnings.push(`Snapshot scoring loaded from ${snapshotUniverse ?? "unknown"} top selections.`);
+    }
 
-    // ✅ 디버그: 섹터 dist 배열 길이 확인 (원인 확인 후 나중에 제거해도 됨)
     warnings.push(`SectorDist sizes: pe=${peArr.length}, ps=${psArr.length} (sector="${sector}")`);
+
+    if (!isNum(revGrowth)) warnings.push(`Growth fallback exhausted: ${growthInfo.note}`);
+    if (!isNum(opMargin) || !isNum(fcfMargin)) warnings.push(marginInfo.note);
+
+    if (pePct === null && psPct === null) {
+      warnings.push("Both P/E and P/S percentile unavailable; value score skipped.");
+    } else if (pePct === null && psPct !== null) {
+      warnings.push("P/E unavailable; using P/S percentile only.");
+    } else if (pePct !== null && psPct === null) {
+      warnings.push("P/S unavailable; using P/E percentile only.");
+    }
 
     if (coverage === 0) warnings.push("No usable signals; neutral score used.");
     else if (coverage < 0.35) warnings.push("Very low coverage; treat as WATCH (not a strong call).");
@@ -478,11 +634,10 @@ export async function GET(req: Request) {
 
     if (lowConf && signal !== "WATCH") signal = "WATCH";
 
-    const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
     const autoSummary = [
-      isNum(revCagr) ? `Rev CAGR ${pct(revCagr)}` : "Rev CAGR N/A",
-      isNum(opMargin) ? `OpM ${pct(opMargin)}` : "OpM N/A",
-      isNum(fcfMargin) ? `FCF M ${pct(fcfMargin)}` : "FCF M N/A",
+      `Growth ${isNum(revGrowth) ? pct(revGrowth) : "N/A"} (${growthInfo.method})`,
+      `OpM ${pct(opMargin)}`,
+      `FCF M ${pct(fcfMargin)}`,
       `FCF Trend ${fcfTrend}`,
       isNum(vol20) || isNum(mdd90)
         ? `Risk Vol ${isNum(vol20) ? pct(vol20) : "N/A"}, MDD ${isNum(mdd90) ? pct(mdd90) : "N/A"}`
@@ -499,19 +654,36 @@ export async function GET(req: Request) {
         dist_asof: dist?.generated_at_utc ?? null,
       },
       weights_used: { growth: wg, margin: wm, value: wv, risk: RISK_W },
-      growth: { used: used.growth, revenue_cagr: revCagr, score: Math.round(growthScore) },
-      margin: { used: used.margin, op_margin: opMargin, fcf_margin: fcfMargin, score: Math.round(marginScore) },
+      growth: {
+        used: used.growth,
+        revenue_growth: revGrowth,
+        method: growthInfo.method,
+        note: growthInfo.note,
+        score: Math.round(growthScore),
+      },
+      margin: {
+        used: used.margin,
+        op_margin: opMargin,
+        fcf_margin: fcfMargin,
+        note: marginInfo.note,
+        score: Math.round(marginScore),
+      },
       value: {
         used: used.value,
         mode: "sector_percentile",
         pe: pe0,
         ps: ps0,
-        pe_percentile: pePct, // 0 cheap
+        pe_percentile: pePct,
         ps_percentile: psPct,
         sector_value_percentile: sectorValuePct,
         score: Math.round(valueScore),
       },
-      risk: { used: used.risk, vol_20d: vol20, mdd_90d: mdd90, score: Math.round(riskScore) },
+      risk: {
+        used: used.risk,
+        vol_20d: vol20,
+        mdd_90d: mdd90,
+        score: Math.round(riskScore),
+      },
       coverage: {
         used_total_weight: usedTotalWeight,
         coverage: Number(coverage.toFixed(2)),
@@ -519,7 +691,7 @@ export async function GET(req: Request) {
         score_norm: Math.round(scoreNorm),
       },
       relative: {
-        snapshot_asof: snapshot?.generated_at_utc ?? null,
+        snapshot_asof: snapshot?.generated_at ?? snapshot?.generated_at_utc ?? null,
         sp500_avg_score: sp500AvgScore,
         score_percentile_in_sp500: scorePctInSp500,
       },
@@ -532,12 +704,11 @@ export async function GET(req: Request) {
       score: scoreFinal,
       confidence,
 
-      // ✅ 상대 비교 결과(프론트에서 바로 쓰기 좋게 summary 옆에 분리)
       relative: {
-        sector_value_percentile: sectorValuePct, // 0 cheap ~ 1 expensive
+        sector_value_percentile: sectorValuePct,
         sp500_avg_score: sp500AvgScore,
-        score_percentile_in_sp500: scorePctInSp500, // 0 bottom ~ 1 top
-        snapshot_asof: snapshot?.generated_at_utc ?? null,
+        score_percentile_in_sp500: scorePctInSp500,
+        snapshot_asof: snapshot?.generated_at ?? snapshot?.generated_at_utc ?? null,
       },
 
       diagnostics: {
@@ -555,6 +726,22 @@ export async function GET(req: Request) {
         ps: ps0,
         risk: { vol_20d: vol20, mdd_90d: mdd90 },
         auto: autoSummary,
+        snapshot_scoring: {
+          universe: snapshotUniverse,
+          snapshot_asof: snapshot?.generated_at ?? snapshot?.generated_at_utc ?? null,
+          snapshot_score: snapshotItem?.score ?? null,
+          snapshot_signal: snapshotItem?.signal ?? snapshotItem?.label ?? null,
+          sector_strength_20d: snapshotItem?.sector_strength_20d ?? null,
+          sector_score: snapshotItem?.sector_score ?? null,
+          risk_score: snapshotItem?.risk_score ?? null,
+          stock_score_raw: snapshotItem?.stock_score_raw ?? null,
+          final_score_raw: snapshotItem?.final_score_raw ?? null,
+          ret5d: snapshotItem?.ret5d ?? null,
+          ret20d: snapshotItem?.ret20d ?? null,
+          rsi: snapshotItem?.rsi ?? null,
+          vol20: snapshotItem?.vol20 ?? null,
+          dd60: snapshotItem?.dd60 ?? null,
+        },
       },
 
       explain,
