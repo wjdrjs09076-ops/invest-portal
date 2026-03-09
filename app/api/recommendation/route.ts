@@ -226,6 +226,7 @@ function percentile(sortedAsc: number[], x: number): number | null {
 async function loadSectorDist(): Promise<SectorDist | null> {
   const url = process.env.SECTOR_DIST_URL;
   if (!url) return null;
+
   try {
     const r = await fetch(url, { next: { revalidate: REVALIDATE_10M } });
     if (!r.ok) return null;
@@ -238,6 +239,7 @@ async function loadSectorDist(): Promise<SectorDist | null> {
 async function loadScoreSnapshot(): Promise<ScoreSnapshot | null> {
   const url = process.env.SCORE_SNAPSHOT_URL;
   if (!url) return null;
+
   try {
     const r = await fetch(url, { next: { revalidate: REVALIDATE_10M } });
     if (!r.ok) return null;
@@ -371,7 +373,7 @@ function sectorCandidates(sectorRaw: string | null | undefined): string[] {
   return Array.from(all);
 }
 
-async function fetchCandle(ticker: string): Promise<Candle | null> {
+async function fetchFinnhubCandle(ticker: string): Promise<number[] | null> {
   const key = process.env.FINNHUB_API_KEY;
   if (!key) return null;
 
@@ -385,9 +387,40 @@ async function fetchCandle(ticker: string): Promise<Candle | null> {
   try {
     const r = await fetch(url, { next: { revalidate: REVALIDATE_10M } });
     if (!r.ok) return null;
+
     const j = (await r.json()) as Candle;
     if (!j || j.s !== "ok" || !Array.isArray(j.c) || j.c.length < 30) return null;
-    return j;
+
+    return j.c;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchYahooCandle(ticker: string): Promise<number[] | null> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    ticker
+  )}?range=8mo&interval=1d`;
+
+  try {
+    const r = await fetch(url, {
+      next: { revalidate: REVALIDATE_10M },
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+      },
+    });
+
+    if (!r.ok) return null;
+
+    const j = await r.json();
+    const closes = j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? null;
+
+    if (!Array.isArray(closes)) return null;
+
+    const clean = closes.filter((x: any) => isNum(x));
+    if (clean.length < 30) return null;
+
+    return clean;
   } catch {
     return null;
   }
@@ -550,7 +583,10 @@ export async function GET(req: Request) {
     }
 
     const fin = (await finRes.json()) as FinancialsPayload;
-    const sectorInfo = sectorRes && "ok" in sectorRes && sectorRes.ok ? ((await sectorRes.json()) as SectorPayload) : null;
+    const sectorInfo =
+      sectorRes && "ok" in sectorRes && sectorRes.ok
+        ? ((await sectorRes.json()) as SectorPayload)
+        : null;
 
     const snapshotItem = findTickerInSnapshot(snapshot, ticker);
     const snapshotUniverse = findTickerUniverse(snapshot, ticker);
@@ -575,9 +611,6 @@ export async function GET(req: Request) {
 
     const peArr = secBlock ? toNumArray(secBlock.pe) : [];
     const psArr = secBlock ? toNumArray(secBlock.ps) : [];
-
-    const candle = await fetchCandle(ticker);
-    const riskRaw = candle ? computeRisk(candle.c) : null;
 
     const rows = [...(fin.rows || [])].sort((a, b) => a.year - b.year);
     const latest = rows[rows.length - 1] || null;
@@ -672,6 +705,22 @@ export async function GET(req: Request) {
 
     if (valueUsed) used.value = true;
 
+    // Risk priority:
+    // 1) Finnhub candle
+    // 2) Yahoo chart fallback
+    // 3) risk_snapshot fallback
+    // 4) score_snapshot fallback
+
+    const finnhubCloses = await fetchFinnhubCandle(ticker);
+    const yahooCloses = !finnhubCloses ? await fetchYahooCandle(ticker) : null;
+
+    const riskRaw =
+      finnhubCloses
+        ? computeRisk(finnhubCloses)
+        : yahooCloses
+        ? computeRisk(yahooCloses)
+        : null;
+
     let vol20 = riskRaw?.vol_20d ?? null;
     let mdd90 = riskRaw?.mdd_90d ?? null;
 
@@ -714,8 +763,9 @@ export async function GET(req: Request) {
       (used.risk ? RISK_W : 0);
 
     let scoreNorm: number;
-    if (usedTotalWeight === 0) scoreNorm = 50;
-    else {
+    if (usedTotalWeight === 0) {
+      scoreNorm = 50;
+    } else {
       scoreNorm = clamp(
         Math.round(((growthScore + marginScore + valueScore + riskScore) / usedTotalWeight) * 100),
         0,
@@ -745,12 +795,14 @@ export async function GET(req: Request) {
     if (!dist) warnings.push("Sector distribution not loaded; value percentile may be unavailable.");
     if (!secBlock) warnings.push(`No sector bucket found for "${sector}" in sector_dist.json.`);
 
-    if (!candle && riskSnapshot) {
-      warnings.push("Price candles unavailable; using risk_snapshot.json fallback.");
-    } else if (!candle && snapshotItem) {
-      warnings.push("Price candles unavailable; using score snapshot risk fallback.");
-    } else if (!candle) {
-      warnings.push("Price candles unavailable; risk score skipped.");
+    if (!finnhubCloses && yahooCloses) {
+      warnings.push("Finnhub candle unavailable; using Yahoo chart risk fallback.");
+    } else if (!finnhubCloses && !yahooCloses && riskSnapshot) {
+      warnings.push("Live price candles unavailable; using risk_snapshot.json fallback.");
+    } else if (!finnhubCloses && !yahooCloses && snapshotItem) {
+      warnings.push("Live price candles unavailable; using score snapshot risk fallback.");
+    } else if (!finnhubCloses && !yahooCloses) {
+      warnings.push("Live price candles unavailable; risk score skipped.");
     }
 
     if (!snapshot) warnings.push("Score snapshot not loaded; relative market snapshot unavailable.");
@@ -761,7 +813,6 @@ export async function GET(req: Request) {
 
     if (fundamentals) warnings.push("Value inputs enriched from fundamentals.json.");
     if (riskSnapshot) warnings.push("Risk inputs enriched from risk_snapshot.json.");
-
     warnings.push(`SectorDist sizes: pe=${peArr.length}, ps=${psArr.length} (sector="${sector}")`);
 
     if (!isNum(revGrowth)) warnings.push(`Growth fallback exhausted: ${growthInfo.note}`);
@@ -830,8 +881,10 @@ export async function GET(req: Request) {
         vol_20d: vol20,
         mdd_90d: mdd90,
         score: Math.round(riskScore),
-        source: candle
+        source: finnhubCloses
           ? "finnhub candle"
+          : yahooCloses
+          ? "yahoo chart fallback"
           : riskSnapshot
           ? "risk_snapshot fallback"
           : snapshotItem
