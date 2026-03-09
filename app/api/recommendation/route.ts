@@ -74,6 +74,28 @@ type ScoreSnapshot = {
   dow30?: SnapshotItem[];
 };
 
+type FundamentalsRecord = {
+  ticker: string;
+  generated_at_utc?: string | null;
+  source?: string;
+  name?: string | null;
+  sector?: string | null;
+  market_cap?: number | null;
+  multiples?: {
+    pe?: number | null;
+    ps?: number | null;
+  };
+  annual_latest?: {
+    revenue?: number | null;
+    op_income?: number | null;
+    fcf?: number | null;
+    cfo?: number | null;
+    capex?: number | null;
+  };
+};
+
+type FundamentalsMap = Record<string, FundamentalsRecord>;
+
 const REVALIDATE_10M = 600;
 
 function isNum(x: any): x is number {
@@ -213,6 +235,22 @@ async function loadScoreSnapshot(): Promise<ScoreSnapshot | null> {
   }
 }
 
+async function loadFundamentalsMap(): Promise<FundamentalsMap | null> {
+  const url = process.env.FUNDAMENTALS_URL;
+  if (!url) return null;
+
+  try {
+    const res = await fetch(url, { next: { revalidate: REVALIDATE_10M } });
+    if (!res.ok) return null;
+
+    const text = await res.text();
+    const json = JSON.parse(text) as FundamentalsMap;
+    return json;
+  } catch {
+    return null;
+  }
+}
+
 function findTickerInSnapshot(snapshot: ScoreSnapshot | null, ticker: string) {
   if (!snapshot) return null;
 
@@ -253,6 +291,76 @@ function findTickerUniverse(snapshot: ScoreSnapshot | null, ticker: string) {
   }
 
   return null;
+}
+
+function normalizeSectorName(sectorRaw: string | null | undefined): string {
+  const s = (sectorRaw || "").trim();
+
+  const map: Record<string, string> = {
+    Technology: "Information Technology",
+    "Information Technology": "Information Technology",
+    Healthcare: "Health Care",
+    "Health Care": "Health Care",
+    "Consumer Defensive": "Consumer Staples",
+    "Consumer Staples": "Consumer Staples",
+    "Consumer Cyclical": "Consumer Discretionary",
+    "Consumer Discretionary": "Consumer Discretionary",
+    Financial: "Financials",
+    Financials: "Financials",
+    Industrials: "Industrials",
+    Energy: "Energy",
+    Materials: "Materials",
+    Utilities: "Utilities",
+    "Real Estate": "Real Estate",
+    Communication: "Communication Services",
+    "Communication Services": "Communication Services",
+  };
+
+  return map[s] || s || "Unknown";
+}
+
+function sectorCandidates(sectorRaw: string | null | undefined): string[] {
+  const s = normalizeSectorName(sectorRaw);
+
+  const aliasMap: Record<string, string[]> = {
+    "Information Technology": ["Information Technology", "Technology"],
+    "Health Care": ["Health Care", "Healthcare"],
+    "Consumer Staples": ["Consumer Staples", "Consumer Defensive"],
+    "Consumer Discretionary": ["Consumer Discretionary", "Consumer Cyclical"],
+    Financials: ["Financials", "Financial"],
+    "Communication Services": ["Communication Services", "Communication"],
+  };
+
+  const base = aliasMap[s] || [s];
+  const all = new Set<string>();
+
+  for (const item of base) {
+    all.add(item);
+    all.add(item.toLowerCase());
+    all.add(item.toUpperCase());
+  }
+
+  return Array.from(all);
+}
+
+function scorePercentileFromMap(map: Record<string, { score: number }>, score: number): number | null {
+  const arr = Object.values(map)
+    .map((x) => x.score)
+    .filter((x) => typeof x === "number" && Number.isFinite(x))
+    .sort((a, b) => a - b);
+
+  if (arr.length < 30) return null;
+
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] < score) lo = mid + 1;
+    else hi = mid;
+  }
+  const n = arr.length;
+  const rank = clamp(lo, 0, n - 1);
+  return rank / (n - 1);
 }
 
 async function fetchCandle(ticker: string): Promise<Candle | null> {
@@ -325,12 +433,6 @@ function yoy(prev: number, latest: number) {
   return latest / prev - 1;
 }
 
-/**
- * 성장률 fallback:
- * 1) 3Y CAGR
- * 2) 2Y CAGR
- * 3) 1Y YoY
- */
 function computeRevenueGrowth(rows: Row[]) {
   const valid = rows.filter((r) => isNum(r.revenue) && (r.revenue as number) > 0);
   if (valid.length < 2) {
@@ -389,11 +491,6 @@ function computeRevenueGrowth(rows: Row[]) {
   };
 }
 
-/**
- * margin fallback:
- * op margin / fcf margin 각각 독립 계산
- * 있는 값만 써서 margin score 구성
- */
 function computeMargins(rows: Row[]) {
   const latest = rows[rows.length - 1] || null;
   if (!latest || !isNum(latest.revenue) || latest.revenue === 0) {
@@ -427,42 +524,47 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
-    const finRes = await fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, {
-      cache: "no-store",
-    });
+    const [finRes, sectorRes, dist, snapshot, fundamentalsMap] = await Promise.all([
+      fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, {
+        cache: "no-store",
+      }),
+      fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, {
+        cache: "no-store",
+      }).catch(() => null),
+      loadSectorDist(),
+      loadScoreSnapshot(),
+      loadFundamentalsMap(),
+    ]);
+
     if (!finRes.ok) {
       return NextResponse.json({ error: `financials HTTP ${finRes.status}` }, { status: 500 });
     }
+
     const fin = (await finRes.json()) as FinancialsPayload;
+    const sectorInfo = sectorRes && "ok" in sectorRes && sectorRes.ok ? ((await sectorRes.json()) as SectorPayload) : null;
 
-    let sectorInfo: SectorPayload | null = null;
-    try {
-      const secRes = await fetch(`${origin}/api/sector?ticker=${encodeURIComponent(ticker)}`, {
-        cache: "no-store",
-      });
-      if (secRes.ok) sectorInfo = (await secRes.json()) as SectorPayload;
-    } catch {
-      sectorInfo = null;
-    }
-
-    const snapshot = await loadScoreSnapshot();
     const snapshotItem = findTickerInSnapshot(snapshot, ticker);
     const snapshotUniverse = findTickerUniverse(snapshot, ticker);
+    const fundamentals = fundamentalsMap?.[ticker] ?? null;
 
-    const sector = sectorInfo?.sector ?? snapshotItem?.sector ?? "Unknown";
+    const sector = normalizeSectorName(
+      sectorInfo?.sector ?? fundamentals?.sector ?? snapshotItem?.sector ?? "Unknown"
+    );
+
     const w0 = sectorWeights(sector);
 
-    const dist = await loadSectorDist();
-    const secKey = sector?.trim();
+    let secBlock: any = null;
+    if (dist?.sectors) {
+      for (const key of sectorCandidates(sector)) {
+        if (dist.sectors[key]) {
+          secBlock = dist.sectors[key];
+          break;
+        }
+      }
+    }
 
-    const secBlock =
-      (secKey && dist?.sectors?.[secKey]) ||
-      (secKey && dist?.sectors?.[secKey.toLowerCase()]) ||
-      (secKey && dist?.sectors?.[secKey.toUpperCase()]) ||
-      null;
-
-    const peArr = secBlock ? toNumArray((secBlock as any).pe) : [];
-    const psArr = secBlock ? toNumArray((secBlock as any).ps) : [];
+    const peArr = secBlock ? toNumArray(secBlock.pe) : [];
+    const psArr = secBlock ? toNumArray(secBlock.ps) : [];
 
     const candle = await fetchCandle(ticker);
     const riskRaw = candle ? computeRisk(candle.c) : null;
@@ -483,8 +585,17 @@ export async function GET(req: Request) {
       fcfTrend = trend(Math.abs(prev.fcf), Math.abs(latest.fcf)) as any;
     }
 
-    const pe0 = fin.multiples?.pe ?? null;
-    const ps0 = fin.multiples?.ps ?? null;
+    // fundamentals.json 우선 → financials multiples fallback
+    const pe0 =
+      (isNum(fundamentals?.multiples?.pe) ? fundamentals?.multiples?.pe : null) ??
+      fin.multiples?.pe ??
+      null;
+
+    const ps0 =
+      (isNum(fundamentals?.multiples?.ps) ? fundamentals?.multiples?.ps : null) ??
+      fin.multiples?.ps ??
+      null;
+
     const mult = sanitizeMultiples(pe0, ps0);
     const pe = mult.pe;
     const ps = mult.ps;
@@ -552,11 +663,25 @@ export async function GET(req: Request) {
 
     if (valueUsed) used.value = true;
 
-    let riskScore = 0;
-    const vol20 = riskRaw?.vol_20d ?? null;
-    const mdd90 = riskRaw?.mdd_90d ?? null;
+    // Finnhub 우선 → snapshot fallback
+    let vol20 = riskRaw?.vol_20d ?? null;
+    let mdd90 = riskRaw?.mdd_90d ?? null;
 
-    if (isNum(vol20) || isNum(mdd90)) {
+    if (!isNum(vol20) && isNum(snapshotItem?.vol20)) {
+      vol20 = snapshotItem!.vol20!;
+    }
+
+    if (!isNum(mdd90) && isNum(snapshotItem?.dd60)) {
+      // snapshot dd60는 음수 비율, recommendation은 양수 drawdown 비율로 맞춤
+      mdd90 = Math.abs(snapshotItem!.dd60!);
+    }
+
+    let riskScore = 0;
+
+    if (isNum(snapshotItem?.risk_score) && (!isNum(riskRaw?.vol_20d) || !isNum(riskRaw?.mdd_90d))) {
+      used.risk = true;
+      riskScore = snapshotItem!.risk_score! * RISK_W;
+    } else if (isNum(vol20) || isNum(mdd90)) {
       used.risk = true;
 
       const vol01 = isNum(vol20) ? scaleInverse(vol20, 0.2, 0.8) : null;
@@ -608,13 +733,16 @@ export async function GET(req: Request) {
 
     if (!dist) warnings.push("Sector distribution not loaded; value percentile may be unavailable.");
     if (!secBlock) warnings.push(`No sector bucket found for "${sector}" in sector_dist.json.`);
-    if (!candle) warnings.push("Price candles unavailable; risk score skipped.");
+    if (!candle && snapshotItem) warnings.push("Price candles unavailable; using score snapshot risk fallback.");
+    else if (!candle) warnings.push("Price candles unavailable; risk score skipped.");
+
     if (!snapshot) warnings.push("Score snapshot not loaded; relative market snapshot unavailable.");
     if (snapshot && !snapshotItem) warnings.push("Ticker not found in current score_snapshot top selections.");
     if (snapshot && snapshotItem) {
       warnings.push(`Snapshot scoring loaded from ${snapshotUniverse ?? "unknown"} top selections.`);
     }
 
+    if (fundamentals) warnings.push("Value inputs enriched from fundamentals.json.");
     warnings.push(`SectorDist sizes: pe=${peArr.length}, ps=${psArr.length} (sector="${sector}")`);
 
     if (!isNum(revGrowth)) warnings.push(`Growth fallback exhausted: ${growthInfo.note}`);
@@ -650,7 +778,7 @@ export async function GET(req: Request) {
       cache: { revalidate_seconds: REVALIDATE_10M },
       sector: {
         sector,
-        source: sectorInfo?.source ?? "unknown",
+        source: sectorInfo?.source ?? (fundamentals?.sector ? "fundamentals" : "unknown"),
         dist_asof: dist?.generated_at_utc ?? null,
       },
       weights_used: { growth: wg, margin: wm, value: wv, risk: RISK_W },
@@ -671,8 +799,8 @@ export async function GET(req: Request) {
       value: {
         used: used.value,
         mode: "sector_percentile",
-        pe: pe0,
-        ps: ps0,
+        pe,
+        ps,
         pe_percentile: pePct,
         ps_percentile: psPct,
         sector_value_percentile: sectorValuePct,
@@ -683,6 +811,12 @@ export async function GET(req: Request) {
         vol_20d: vol20,
         mdd_90d: mdd90,
         score: Math.round(riskScore),
+        source:
+          !candle && snapshotItem
+            ? "score_snapshot fallback"
+            : candle
+            ? "finnhub candle"
+            : "unavailable",
       },
       coverage: {
         used_total_weight: usedTotalWeight,
@@ -722,8 +856,8 @@ export async function GET(req: Request) {
 
       summary: {
         sector,
-        pe: pe0,
-        ps: ps0,
+        pe,
+        ps,
         risk: { vol_20d: vol20, mdd_90d: mdd90 },
         auto: autoSummary,
         snapshot_scoring: {
