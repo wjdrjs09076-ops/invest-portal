@@ -96,6 +96,18 @@ type FundamentalsRecord = {
 
 type FundamentalsMap = Record<string, FundamentalsRecord>;
 
+type RiskSnapshotItem = {
+  ticker: string;
+  close?: number | null;
+  ret5d?: number | null;
+  ret20d?: number | null;
+  rsi14?: number | null;
+  vol20?: number | null;
+  dd60?: number | null;
+};
+
+type RiskSnapshotMap = Record<string, RiskSnapshotItem>;
+
 const REVALIDATE_10M = 600;
 
 function isNum(x: any): x is number {
@@ -251,6 +263,22 @@ async function loadFundamentalsMap(): Promise<FundamentalsMap | null> {
   }
 }
 
+async function loadRiskSnapshotMap(): Promise<RiskSnapshotMap | null> {
+  const url = process.env.RISK_SNAPSHOT_URL;
+  if (!url) return null;
+
+  try {
+    const res = await fetch(url, { next: { revalidate: REVALIDATE_10M } });
+    if (!res.ok) return null;
+
+    const text = await res.text();
+    const json = JSON.parse(text) as RiskSnapshotMap;
+    return json;
+  } catch {
+    return null;
+  }
+}
+
 function findTickerInSnapshot(snapshot: ScoreSnapshot | null, ticker: string) {
   if (!snapshot) return null;
 
@@ -341,26 +369,6 @@ function sectorCandidates(sectorRaw: string | null | undefined): string[] {
   }
 
   return Array.from(all);
-}
-
-function scorePercentileFromMap(map: Record<string, { score: number }>, score: number): number | null {
-  const arr = Object.values(map)
-    .map((x) => x.score)
-    .filter((x) => typeof x === "number" && Number.isFinite(x))
-    .sort((a, b) => a - b);
-
-  if (arr.length < 30) return null;
-
-  let lo = 0;
-  let hi = arr.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (arr[mid] < score) lo = mid + 1;
-    else hi = mid;
-  }
-  const n = arr.length;
-  const rank = clamp(lo, 0, n - 1);
-  return rank / (n - 1);
 }
 
 async function fetchCandle(ticker: string): Promise<Candle | null> {
@@ -524,7 +532,7 @@ export async function GET(req: Request) {
   try {
     const origin = new URL(req.url).origin;
 
-    const [finRes, sectorRes, dist, snapshot, fundamentalsMap] = await Promise.all([
+    const [finRes, sectorRes, dist, snapshot, fundamentalsMap, riskSnapshotMap] = await Promise.all([
       fetch(`${origin}/api/financials?ticker=${encodeURIComponent(ticker)}`, {
         cache: "no-store",
       }),
@@ -534,6 +542,7 @@ export async function GET(req: Request) {
       loadSectorDist(),
       loadScoreSnapshot(),
       loadFundamentalsMap(),
+      loadRiskSnapshotMap(),
     ]);
 
     if (!finRes.ok) {
@@ -546,6 +555,7 @@ export async function GET(req: Request) {
     const snapshotItem = findTickerInSnapshot(snapshot, ticker);
     const snapshotUniverse = findTickerUniverse(snapshot, ticker);
     const fundamentals = fundamentalsMap?.[ticker] ?? null;
+    const riskSnapshot = riskSnapshotMap?.[ticker] ?? null;
 
     const sector = normalizeSectorName(
       sectorInfo?.sector ?? fundamentals?.sector ?? snapshotItem?.sector ?? "Unknown"
@@ -585,7 +595,6 @@ export async function GET(req: Request) {
       fcfTrend = trend(Math.abs(prev.fcf), Math.abs(latest.fcf)) as any;
     }
 
-    // fundamentals.json 우선 → financials multiples fallback
     const pe0 =
       (isNum(fundamentals?.multiples?.pe) ? fundamentals?.multiples?.pe : null) ??
       fin.multiples?.pe ??
@@ -663,25 +672,24 @@ export async function GET(req: Request) {
 
     if (valueUsed) used.value = true;
 
-    // Finnhub 우선 → snapshot fallback
     let vol20 = riskRaw?.vol_20d ?? null;
     let mdd90 = riskRaw?.mdd_90d ?? null;
 
-    if (!isNum(vol20) && isNum(snapshotItem?.vol20)) {
+    if (!isNum(vol20) && isNum(riskSnapshot?.vol20)) {
+      vol20 = riskSnapshot!.vol20!;
+    } else if (!isNum(vol20) && isNum(snapshotItem?.vol20)) {
       vol20 = snapshotItem!.vol20!;
     }
 
-    if (!isNum(mdd90) && isNum(snapshotItem?.dd60)) {
-      // snapshot dd60는 음수 비율, recommendation은 양수 drawdown 비율로 맞춤
+    if (!isNum(mdd90) && isNum(riskSnapshot?.dd60)) {
+      mdd90 = Math.abs(riskSnapshot!.dd60!);
+    } else if (!isNum(mdd90) && isNum(snapshotItem?.dd60)) {
       mdd90 = Math.abs(snapshotItem!.dd60!);
     }
 
     let riskScore = 0;
 
-    if (isNum(snapshotItem?.risk_score) && (!isNum(riskRaw?.vol_20d) || !isNum(riskRaw?.mdd_90d))) {
-      used.risk = true;
-      riskScore = snapshotItem!.risk_score! * RISK_W;
-    } else if (isNum(vol20) || isNum(mdd90)) {
+    if (isNum(vol20) || isNum(mdd90)) {
       used.risk = true;
 
       const vol01 = isNum(vol20) ? scaleInverse(vol20, 0.2, 0.8) : null;
@@ -694,6 +702,9 @@ export async function GET(req: Request) {
 
       if (r01 !== null) riskScore = r01 * RISK_W;
       else used.risk = false;
+    } else if (isNum(snapshotItem?.risk_score)) {
+      used.risk = true;
+      riskScore = snapshotItem!.risk_score! * RISK_W;
     }
 
     const usedTotalWeight =
@@ -733,8 +744,14 @@ export async function GET(req: Request) {
 
     if (!dist) warnings.push("Sector distribution not loaded; value percentile may be unavailable.");
     if (!secBlock) warnings.push(`No sector bucket found for "${sector}" in sector_dist.json.`);
-    if (!candle && snapshotItem) warnings.push("Price candles unavailable; using score snapshot risk fallback.");
-    else if (!candle) warnings.push("Price candles unavailable; risk score skipped.");
+
+    if (!candle && riskSnapshot) {
+      warnings.push("Price candles unavailable; using risk_snapshot.json fallback.");
+    } else if (!candle && snapshotItem) {
+      warnings.push("Price candles unavailable; using score snapshot risk fallback.");
+    } else if (!candle) {
+      warnings.push("Price candles unavailable; risk score skipped.");
+    }
 
     if (!snapshot) warnings.push("Score snapshot not loaded; relative market snapshot unavailable.");
     if (snapshot && !snapshotItem) warnings.push("Ticker not found in current score_snapshot top selections.");
@@ -743,6 +760,8 @@ export async function GET(req: Request) {
     }
 
     if (fundamentals) warnings.push("Value inputs enriched from fundamentals.json.");
+    if (riskSnapshot) warnings.push("Risk inputs enriched from risk_snapshot.json.");
+
     warnings.push(`SectorDist sizes: pe=${peArr.length}, ps=${psArr.length} (sector="${sector}")`);
 
     if (!isNum(revGrowth)) warnings.push(`Growth fallback exhausted: ${growthInfo.note}`);
@@ -811,12 +830,13 @@ export async function GET(req: Request) {
         vol_20d: vol20,
         mdd_90d: mdd90,
         score: Math.round(riskScore),
-        source:
-          !candle && snapshotItem
-            ? "score_snapshot fallback"
-            : candle
-            ? "finnhub candle"
-            : "unavailable",
+        source: candle
+          ? "finnhub candle"
+          : riskSnapshot
+          ? "risk_snapshot fallback"
+          : snapshotItem
+          ? "score_snapshot fallback"
+          : "unavailable",
       },
       coverage: {
         used_total_weight: usedTotalWeight,
@@ -875,6 +895,13 @@ export async function GET(req: Request) {
           rsi: snapshotItem?.rsi ?? null,
           vol20: snapshotItem?.vol20 ?? null,
           dd60: snapshotItem?.dd60 ?? null,
+        },
+        risk_snapshot: {
+          ret5d: riskSnapshot?.ret5d ?? null,
+          ret20d: riskSnapshot?.ret20d ?? null,
+          rsi14: riskSnapshot?.rsi14 ?? null,
+          vol20: riskSnapshot?.vol20 ?? null,
+          dd60: riskSnapshot?.dd60 ?? null,
         },
       },
 
