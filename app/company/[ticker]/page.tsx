@@ -5,6 +5,7 @@ import RecommendationClient from "./RecommendationClient";
 import OverviewClient from "./OverviewClient";
 import NewsClient from "./NewsClient";
 import FinancialsClient from "@/components/FinancialsClient";
+import PriceChartCard from "@/components/PriceChartCard";
 
 export default async function CompanyPage({
   params,
@@ -41,6 +42,10 @@ export default async function CompanyPage({
 
       {/* ✅ Overview */}
       <OverviewClient ticker={ticker} />
+
+      <div className="rounded-2xl border bg-yellow-50 p-4">
+  PriceChartCard mount test: {ticker}
+</div>
 
       {/* ✅ Recommendation */}
       <RecommendationClient ticker={ticker} />
