@@ -43,11 +43,9 @@ export default async function CompanyPage({
       {/* ✅ Overview */}
       <OverviewClient ticker={ticker} />
 
-      <div className="rounded-2xl border bg-yellow-50 p-4">
-  PriceChartCard mount test: {ticker}
-</div>
-
-      {/* ✅ Recommendation */}
+      <PriceChartCard ticker={ticker} />
+     
+     {/* ✅ Recommendation */}
       <RecommendationClient ticker={ticker} />
 
       {/* ✅ News */}
