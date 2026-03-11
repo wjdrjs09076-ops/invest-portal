@@ -9,6 +9,7 @@ type YahooChartResponse = {
       indicators?: {
         quote?: Array<{
           close?: Array<number | null>;
+          volume?: Array<number | null>;
         }>;
       };
       meta?: {
@@ -25,6 +26,7 @@ type RangeKey = "1M" | "3M" | "6M" | "1Y";
 type ChartPoint = {
   date: string;
   close: number;
+  volume: number | null;
 };
 
 const RANGE_MAP: Record<RangeKey, { range: string; interval: string }> = {
@@ -84,8 +86,9 @@ export async function GET(req: Request) {
     const json = (await res.json()) as YahooChartResponse;
     const result = json.chart?.result?.[0];
 
-    const timestamps = result?.timestamp ?? [];
-    const closes = result?.indicators?.quote?.[0]?.close ?? [];
+    const timestamps: number[] = result?.timestamp ?? [];
+    const closes: Array<number | null> = result?.indicators?.quote?.[0]?.close ?? [];
+    const volumes: Array<number | null> = result?.indicators?.quote?.[0]?.volume ?? [];
     const currency = result?.meta?.currency ?? "USD";
 
     if (!timestamps.length || !closes.length) {
@@ -95,11 +98,14 @@ export async function GET(req: Request) {
     const points: ChartPoint[] = timestamps
       .map((ts, i): ChartPoint | null => {
         const close = closes[i];
+        const volume = volumes[i] ?? null;
+
         if (!isNumber(close)) return null;
 
         return {
           date: new Date(ts * 1000).toISOString(),
           close,
+          volume: isNumber(volume) ? volume : null,
         };
       })
       .filter(isChartPoint);
@@ -121,6 +127,7 @@ export async function GET(req: Request) {
       points,
       latest_close: latestPoint.close,
       first_close: firstPoint.close,
+      latest_volume: latestPoint.volume,
       generated_at_utc: new Date().toISOString(),
       source: "yahoo_chart",
     });
