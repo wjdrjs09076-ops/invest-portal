@@ -198,9 +198,7 @@ export default function BacktestPage() {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="quantile" />
             <YAxis tickFormatter={(value) => `${Number(value).toFixed(1)}%`} />
-            <Tooltip
-              formatter={(value) => `${Number(value).toFixed(2)}%`}
-            />
+            <Tooltip formatter={(value) => `${Number(value).toFixed(2)}%`} />
             <Legend />
             <Bar
               dataKey="avg_return_pct"

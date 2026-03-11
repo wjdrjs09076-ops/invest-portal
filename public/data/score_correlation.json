@@ -1,40 +1,40 @@
 {
-  "generated_at": "2026-03-11T10:36:43.013864+00:00",
+  "generated_at": "2026-03-11T10:48:29.544059+00:00",
   "lookback_years": 3,
   "forward_days": 20,
   "data": [
     {
       "quantile": "Q1",
-      "avg_return": 0.02417024870204281,
-      "median_return": 0.018708779045146562,
+      "avg_return": 0.024170249362689158,
+      "median_return": 0.018708711331578698,
       "count": 3243,
       "avg_score": 37.73388837496145
     },
     {
       "quantile": "Q2",
-      "avg_return": 0.008035189448927256,
-      "median_return": 0.007420608145748853,
+      "avg_return": 0.008035190301199528,
+      "median_return": 0.007420608500380732,
       "count": 3300,
       "avg_score": 54.843030303030304
     },
     {
       "quantile": "Q3",
-      "avg_return": 0.013059780804346626,
-      "median_return": 0.010711499293764248,
+      "avg_return": 0.013059780146433329,
+      "median_return": 0.010711617255322325,
       "count": 2955,
       "avg_score": 62.69780033840947
     },
     {
       "quantile": "Q4",
-      "avg_return": 0.015191398012059444,
-      "median_return": 0.012238561261224357,
+      "avg_return": 0.01519139999293569,
+      "median_return": 0.01223842318224544,
       "count": 3457,
       "avg_score": 68.02776974255134
     },
     {
       "quantile": "Q5",
-      "avg_return": 0.015446462824307472,
-      "median_return": 0.012727709277165267,
+      "avg_return": 0.01544646081338037,
+      "median_return": 0.012727782874544347,
       "count": 2558,
       "avg_score": 73.4800625488663
     }
