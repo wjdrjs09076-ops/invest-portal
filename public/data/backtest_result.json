@@ -1,0 +1,31 @@
+{
+  "strategy": {
+    "rebalance": "monthly",
+    "selection": "BUY",
+    "top_n": 10,
+    "transaction_cost": 0.0015,
+    "period_years": 3
+  },
+  "metrics": {
+    "total_return": 0.8093144019393923,
+    "cagr": 0.22013955027791865,
+    "volatility": 0.1380820034931519,
+    "sharpe": 1.5942667741552314,
+    "max_drawdown": -0.11271400531087117
+  },
+  "benchmark": {
+    "ticker": "SPY",
+    "metrics": {
+      "total_return": 0.8280760307369517,
+      "cagr": 0.22437048636896062,
+      "volatility": 0.1506318754222696,
+      "sharpe": 1.489528599043051,
+      "max_drawdown": -0.1875523767324495
+    }
+  },
+  "notes": [
+    "Universe based on current S&P500 constituents (survivorship bias possible)",
+    "Look-ahead bias removed via historical slicing",
+    "Transaction cost applied per rebalance"
+  ]
+}
