@@ -1,6 +1,7 @@
 import SearchBar from "@/components/SearchBar";
 import MarketPortal from "@/components/MarketPortal";
 import BacktestSummary from "@/components/BacktestSummary";
+import StrongestSignalCard from "@/components/StrongestSignalCard";
 
 export default function Home() {
   return (
@@ -14,6 +15,8 @@ export default function Home() {
       <SearchBar />
 
       <BacktestSummary />
+
+      <StrongestSignalCard />
 
       <MarketPortal />
     </main>
