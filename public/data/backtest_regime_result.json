@@ -1,0 +1,38 @@
+{
+  "strategy": {
+    "rebalance": "monthly",
+    "selection": "BUY",
+    "top_n": 10,
+    "transaction_cost": 0.0015,
+    "period_years": 3,
+    "regime_filter": {
+      "benchmark": "SPY",
+      "ma_window": 200,
+      "risk_on_exposure": 1.0,
+      "risk_off_exposure": 0.5
+    }
+  },
+  "metrics": {
+    "total_return": 2.009937218295378,
+    "cagr": 0.3483828254750636,
+    "volatility": 0.16480522429415606,
+    "sharpe": 2.113906442997494,
+    "max_drawdown": -0.1059948559034749
+  },
+  "benchmark": {
+    "ticker": "SPY",
+    "metrics": {
+      "total_return": 0.828686629744886,
+      "cagr": 0.17789818157371373,
+      "volatility": 0.16500858084529055,
+      "sharpe": 1.078114729927338,
+      "max_drawdown": -0.18755245858548641
+    }
+  },
+  "notes": [
+    "Universe based on current S&P500 constituents (survivorship bias possible)",
+    "Look-ahead bias removed via historical slicing",
+    "Transaction cost applied per rebalance",
+    "Regime filter uses SPY vs 200DMA to scale exposure"
+  ]
+}
