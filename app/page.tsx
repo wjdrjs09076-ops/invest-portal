@@ -1,5 +1,6 @@
 import SearchBar from "@/components/SearchBar";
 import MarketPortal from "@/components/MarketPortal";
+import BacktestSummary from "@/components/BacktestSummary";
 
 export default function Home() {
   return (
@@ -11,6 +12,8 @@ export default function Home() {
       </p>
 
       <SearchBar />
+
+      <BacktestSummary />
 
       <MarketPortal />
     </main>
