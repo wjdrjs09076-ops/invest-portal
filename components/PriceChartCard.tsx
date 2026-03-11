@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type RangeKey = "1M" | "3M" | "6M" | "1Y";
+type RangeKey = "1M" | "3M" | "6M" | "YTD" | "1Y";
 
 type ChartPoint = {
   date: string;
@@ -22,7 +22,7 @@ type ChartPayload = {
   source: string;
 };
 
-const RANGES: RangeKey[] = ["1M", "3M", "6M", "1Y"];
+const RANGES: RangeKey[] = ["1M", "3M", "6M", "YTD", "1Y"];
 
 function formatPrice(value: number | null | undefined) {
   if (value === null || value === undefined || Number.isNaN(value)) return "-";
@@ -40,15 +40,9 @@ function formatPct(value: number | null | undefined) {
 function formatVolume(value: number | null | undefined) {
   if (value === null || value === undefined || Number.isNaN(value)) return "-";
 
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`;
-  }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
-  }
-  if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
-  }
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
   return String(Math.round(value));
 }
 
@@ -57,33 +51,32 @@ function formatDateLabel(iso: string, range: RangeKey) {
   if (range === "1M") {
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  if (range === "3M" || range === "6M") {
+  if (range === "3M" || range === "6M" || range === "YTD") {
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
   return d.toLocaleDateString(undefined, { year: "2-digit", month: "short" });
 }
 
 function buildLinePath(
-  points: ChartPoint[],
+  values: number[],
   width: number,
   height: number,
   padding: number
 ) {
-  if (!points.length) return "";
+  if (!values.length) return "";
 
-  const closes = points.map((p) => p.close);
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const span = max - min || 1;
 
-  return points
-    .map((p, i) => {
+  return values
+    .map((v, i) => {
       const x =
-        padding + (i / Math.max(points.length - 1, 1)) * (width - padding * 2);
+        padding + (i / Math.max(values.length - 1, 1)) * (width - padding * 2);
       const y =
         height -
         padding -
-        ((p.close - min) / span) * (height - padding * 2);
+        ((v - min) / span) * (height - padding * 2);
 
       return `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     })
@@ -98,9 +91,44 @@ function yPosition(
   padding: number
 ) {
   const span = max - min || 1;
-  return (
-    height - padding - ((value - min) / span) * (height - padding * 2)
-  );
+  return height - padding - ((value - min) / span) * (height - padding * 2);
+}
+
+function movingAverage(values: number[], period: number): Array<number | null> {
+  return values.map((_, i) => {
+    if (i < period - 1) return null;
+    const window = values.slice(i - period + 1, i + 1);
+    const avg = window.reduce((a, b) => a + b, 0) / period;
+    return avg;
+  });
+}
+
+function buildNullablePath(
+  values: Array<number | null>,
+  domainMin: number,
+  domainMax: number,
+  width: number,
+  height: number,
+  padding: number
+) {
+  const span = domainMax - domainMin || 1;
+  let path = "";
+
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v === null || Number.isNaN(v)) continue;
+
+    const x =
+      padding + (i / Math.max(values.length - 1, 1)) * (width - padding * 2);
+    const y =
+      height -
+      padding -
+      ((v - domainMin) / span) * (height - padding * 2);
+
+    path += `${path ? " L" : "M"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }
+
+  return path;
 }
 
 export default function PriceChartCard({ ticker }: { ticker: string }) {
@@ -130,9 +158,9 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
         const json = (await res.json()) as ChartPayload;
         if (!alive) return;
         setData(json);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!alive) return;
-        setErr(e?.message || "Failed to load chart");
+        setErr(e instanceof Error ? e.message : "Failed to load chart");
         setData(null);
       } finally {
         if (alive) setLoading(false);
@@ -157,6 +185,8 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
         height,
         padding,
         path: "",
+        ma50Path: "",
+        ma200Path: "",
         min: 0,
         max: 0,
       };
@@ -165,9 +195,15 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
     const closes = points.map((p) => p.close);
     const min = Math.min(...closes);
     const max = Math.max(...closes);
-    const path = buildLinePath(points, width, height, padding);
 
-    return { width, height, padding, path, min, max };
+    const path = buildLinePath(closes, width, height, padding);
+    const ma50 = movingAverage(closes, 50);
+    const ma200 = movingAverage(closes, 200);
+
+    const ma50Path = buildNullablePath(ma50, min, max, width, height, padding);
+    const ma200Path = buildNullablePath(ma200, min, max, width, height, padding);
+
+    return { width, height, padding, path, ma50Path, ma200Path, min, max };
   }, [data]);
 
   const volumeChart = useMemo(() => {
@@ -201,13 +237,18 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
       ? data.points[hoverIndex]
       : null;
 
+  const perfClass =
+    perf !== null && perf >= 0
+      ? "text-green-600"
+      : "text-red-600";
+
   return (
     <section className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold">Price Chart</h3>
           <div className="mt-1 text-sm text-gray-500">
-            Price trend with selectable time range and daily trading volume
+            Price trend with selectable time range, moving averages, and daily trading volume
           </div>
         </div>
 
@@ -252,8 +293,10 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
             </div>
 
             <div className="rounded-xl bg-gray-50 p-3">
-              <div className="text-xs text-gray-500">{range} Return</div>
-              <div className="mt-1 text-lg font-semibold">
+              <div className="text-xs text-gray-500">
+                {range === "YTD" ? "YTD Return" : `${range} Return`}
+              </div>
+              <div className={`mt-1 text-lg font-semibold ${perfClass}`}>
                 {formatPct(perf)}
               </div>
             </div>
@@ -268,6 +311,21 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
               <div className="mt-1 text-lg font-semibold">
                 {formatVolume(data.latest_volume)}
               </div>
+            </div>
+          </div>
+
+          <div className="mb-2 flex flex-wrap gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-[2px] w-5 bg-indigo-600" />
+              <span>Price</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-[2px] w-5 bg-orange-500" />
+              <span>MA50</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-[2px] w-5 bg-gray-500" />
+              <span>MA200</span>
             </div>
           </div>
 
@@ -302,6 +360,24 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
                   strokeWidth="2.5"
                   className="text-indigo-600"
                 />
+
+                {priceChart.ma50Path ? (
+                  <path
+                    d={priceChart.ma50Path}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth="1.75"
+                  />
+                ) : null}
+
+                {priceChart.ma200Path ? (
+                  <path
+                    d={priceChart.ma200Path}
+                    fill="none"
+                    stroke="#6b7280"
+                    strokeWidth="1.75"
+                  />
+                ) : null}
 
                 {data.points.map((p, i) => {
                   const x =
@@ -372,8 +448,8 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
 
                   const barWidth = Math.max(
                     2,
-                    (volumeChart.width - volumeChart.padding * 2) /
-                      Math.max(data.points.length, 1) *
+                    ((volumeChart.width - volumeChart.padding * 2) /
+                      Math.max(data.points.length, 1)) *
                       0.7
                   );
 
@@ -389,8 +465,19 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
                       : 0;
 
                   const y = volumeChart.height - volumeChart.padding - h;
-
                   const active = hoverIndex === i;
+
+                  const prevClose =
+                    i > 0 ? data.points[i - 1].close : p.close;
+
+                  const isUp = p.close >= prevClose;
+                  const fill = active
+                    ? "#4f46e5"
+                    : isUp
+                    ? "#16a34a"
+                    : "#dc2626";
+
+                  const opacity = active ? 1 : 0.45;
 
                   return (
                     <rect
@@ -400,7 +487,8 @@ export default function PriceChartCard({ ticker }: { ticker: string }) {
                       width={barWidth}
                       height={Math.max(1, h)}
                       rx={1.5}
-                      fill={active ? "#4f46e5" : "#c7d2fe"}
+                      fill={fill}
+                      opacity={opacity}
                       onMouseEnter={() => setHoverIndex(i)}
                     />
                   );

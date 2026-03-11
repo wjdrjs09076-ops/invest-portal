@@ -21,7 +21,7 @@ type YahooChartResponse = {
   };
 };
 
-type RangeKey = "1M" | "3M" | "6M" | "1Y";
+type RangeKey = "1M" | "3M" | "6M" | "YTD" | "1Y";
 
 type ChartPoint = {
   date: string;
@@ -33,12 +33,13 @@ const RANGE_MAP: Record<RangeKey, { range: string; interval: string }> = {
   "1M": { range: "1mo", interval: "1d" },
   "3M": { range: "3mo", interval: "1d" },
   "6M": { range: "6mo", interval: "1d" },
+  YTD: { range: "ytd", interval: "1d" },
   "1Y": { range: "1y", interval: "1d" },
 };
 
 function normalizeRange(input: string | null): RangeKey {
   const key = (input || "6M").toUpperCase();
-  if (key === "1M" || key === "3M" || key === "6M" || key === "1Y") {
+  if (key === "1M" || key === "3M" || key === "6M" || key === "YTD" || key === "1Y") {
     return key;
   }
   return "6M";
