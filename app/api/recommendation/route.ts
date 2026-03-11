@@ -206,6 +206,105 @@ function sectorWeights(sectorRaw: string | null | undefined) {
   return w;
 }
 
+function sectorMarginBands(sectorRaw: string | null | undefined) {
+  const sector = (sectorRaw || "Unknown").toLowerCase();
+  const is = (k: string) => sector.includes(k);
+
+  // 업종별 기대 마진 범위
+  if (
+    is("technology") ||
+    is("information technology") ||
+    is("software") ||
+    is("internet")
+  ) {
+    return {
+      op_best: 0.35,
+      op_neutral: 0.15,
+      fcf_best: 0.28,
+      fcf_neutral: 0.10,
+      mode: "sector_band_tech",
+    };
+  }
+
+  if (is("communication")) {
+    return {
+      op_best: 0.28,
+      op_neutral: 0.12,
+      fcf_best: 0.22,
+      fcf_neutral: 0.08,
+      mode: "sector_band_communication",
+    };
+  }
+
+  if (is("health care") || is("healthcare") || is("pharma")) {
+    return {
+      op_best: 0.26,
+      op_neutral: 0.10,
+      fcf_best: 0.20,
+      fcf_neutral: 0.06,
+      mode: "sector_band_healthcare",
+    };
+  }
+
+  if (is("financial") || is("banks") || is("insurance")) {
+    return {
+      op_best: 0.32,
+      op_neutral: 0.12,
+      fcf_best: 0.22,
+      fcf_neutral: 0.06,
+      mode: "sector_band_financials",
+    };
+  }
+
+  if (is("consumer staples") || is("consumer defensive") || is("staples")) {
+    return {
+      op_best: 0.20,
+      op_neutral: 0.08,
+      fcf_best: 0.14,
+      fcf_neutral: 0.05,
+      mode: "sector_band_staples",
+    };
+  }
+
+  if (is("utilities") || is("real estate")) {
+    return {
+      op_best: 0.18,
+      op_neutral: 0.06,
+      fcf_best: 0.12,
+      fcf_neutral: 0.03,
+      mode: "sector_band_utilities_realestate",
+    };
+  }
+
+  if (is("industrials") || is("materials") || is("energy")) {
+    return {
+      op_best: 0.18,
+      op_neutral: 0.06,
+      fcf_best: 0.12,
+      fcf_neutral: 0.03,
+      mode: "sector_band_industrial_energy_materials",
+    };
+  }
+
+  if (is("consumer discretionary") || is("consumer cyclical")) {
+    return {
+      op_best: 0.18,
+      op_neutral: 0.06,
+      fcf_best: 0.12,
+      fcf_neutral: 0.03,
+      mode: "sector_band_discretionary",
+    };
+  }
+
+  return {
+    op_best: 0.22,
+    op_neutral: 0.08,
+    fcf_best: 0.15,
+    fcf_neutral: 0.04,
+    mode: "sector_band_default",
+  };
+}
+
 function percentile(sortedAsc: number[], x: number): number | null {
   if (!Array.isArray(sortedAsc) || sortedAsc.length < 3) return null;
   if (!isNum(x)) return null;
@@ -221,6 +320,30 @@ function percentile(sortedAsc: number[], x: number): number | null {
   const n = sortedAsc.length;
   const rank = clamp(lo, 0, n - 1);
   return rank / (n - 1);
+}
+
+// value percentile -> cheapness score (0~1)
+// percentile 높을수록 비싸고, 80% 이상부터 급격히 감점
+function nonlinearCheapnessFromPercentile(pct: number | null): number | null {
+  if (!isNum(pct)) return null;
+
+  const p = clamp(pct, 0, 1);
+
+  if (p <= 0.60) {
+    // 완만한 감점: 0.00 -> 1.00, 0.60 -> 0.58
+    return 1.0 - 0.70 * p;
+  }
+  if (p <= 0.80) {
+    // 중간 상단 구간부터 가파르게 감점
+    return 0.58 - 1.40 * (p - 0.60); // 0.80 -> 0.30
+  }
+  if (p <= 0.90) {
+    // 비쌈 구간 강한 패널티
+    return 0.30 - 2.00 * (p - 0.80); // 0.90 -> 0.10
+  }
+
+  // 극단적으로 비싼 구간은 거의 0으로 수렴
+  return Math.max(0, 0.10 - 1.00 * (p - 0.90)); // 1.00 -> 0.00
 }
 
 async function loadSectorDist(): Promise<SectorDist | null> {
@@ -598,6 +721,7 @@ export async function GET(req: Request) {
     );
 
     const w0 = sectorWeights(sector);
+    const marginBands = sectorMarginBands(sector);
 
     let secBlock: any = null;
     if (dist?.sectors) {
@@ -677,12 +801,12 @@ export async function GET(req: Request) {
 
     if (isNum(opMargin)) {
       marginUsed = true;
-      marginScore += scaleLinear(opMargin, 0, 0.25) * opPart;
+      marginScore += scaleLinear(opMargin, 0, marginBands.op_best) * opPart;
     }
 
     if (isNum(fcfMargin)) {
       marginUsed = true;
-      marginScore += scaleLinear(fcfMargin, 0, 0.2) * fcfPart;
+      marginScore += scaleLinear(fcfMargin, 0, marginBands.fcf_best) * fcfPart;
     }
 
     if (marginUsed) used.margin = true;
@@ -693,14 +817,17 @@ export async function GET(req: Request) {
     const pePart = wv * (18 / 30);
     const psPart = wv * (12 / 30);
 
-    if (pePct !== null) {
+    const peCheapness = nonlinearCheapnessFromPercentile(pePct);
+    const psCheapness = nonlinearCheapnessFromPercentile(psPct);
+
+    if (peCheapness !== null) {
       valueUsed = true;
-      valueScore += (1 - pePct) * pePart;
+      valueScore += peCheapness * pePart;
     }
 
-    if (psPct !== null) {
+    if (psCheapness !== null) {
       valueUsed = true;
-      valueScore += (1 - psPct) * psPart;
+      valueScore += psCheapness * psPart;
     }
 
     if (valueUsed) used.value = true;
@@ -814,6 +941,8 @@ export async function GET(req: Request) {
     if (fundamentals) warnings.push("Value inputs enriched from fundamentals.json.");
     if (riskSnapshot) warnings.push("Risk inputs enriched from risk_snapshot.json.");
     warnings.push(`SectorDist sizes: pe=${peArr.length}, ps=${psArr.length} (sector="${sector}")`);
+    warnings.push(`Margin scoring uses sector-aware bands (${marginBands.mode}).`);
+    warnings.push("Value scoring uses nonlinear percentile penalty above expensive-tail thresholds.");
 
     if (!isNum(revGrowth)) warnings.push(`Growth fallback exhausted: ${growthInfo.note}`);
     if (!isNum(opMargin) || !isNum(fcfMargin)) warnings.push(marginInfo.note);
@@ -821,9 +950,9 @@ export async function GET(req: Request) {
     if (pePct === null && psPct === null) {
       warnings.push("Both P/E and P/S percentile unavailable; value score skipped.");
     } else if (pePct === null && psPct !== null) {
-      warnings.push("P/E unavailable; using P/S percentile only.");
+      warnings.push("P/E unavailable; using nonlinear P/S percentile only.");
     } else if (pePct !== null && psPct === null) {
-      warnings.push("P/S unavailable; using P/E percentile only.");
+      warnings.push("P/S unavailable; using nonlinear P/E percentile only.");
     }
 
     if (coverage === 0) warnings.push("No usable signals; neutral score used.");
@@ -864,15 +993,24 @@ export async function GET(req: Request) {
         op_margin: opMargin,
         fcf_margin: fcfMargin,
         note: marginInfo.note,
+        mode: marginBands.mode,
+        sector_band: {
+          op_best: marginBands.op_best,
+          op_neutral: marginBands.op_neutral,
+          fcf_best: marginBands.fcf_best,
+          fcf_neutral: marginBands.fcf_neutral,
+        },
         score: Math.round(marginScore),
       },
       value: {
         used: used.value,
-        mode: "sector_percentile",
+        mode: "sector_percentile_nonlinear",
         pe,
         ps,
         pe_percentile: pePct,
         ps_percentile: psPct,
+        pe_cheapness_nonlinear: peCheapness,
+        ps_cheapness_nonlinear: psCheapness,
         sector_value_percentile: sectorValuePct,
         score: Math.round(valueScore),
       },
