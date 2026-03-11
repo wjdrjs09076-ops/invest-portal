@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -14,26 +14,48 @@ import {
   Bar,
 } from "recharts";
 
+type Metrics = {
+  cagr: number;
+  sharpe: number;
+  max_drawdown: number;
+  volatility: number;
+  total_return?: number;
+};
+
 type BacktestSummary = {
-  metrics: {
-    cagr: number;
-    sharpe: number;
-    max_drawdown: number;
-    volatility: number;
-  };
+  metrics: Metrics;
   benchmark: {
     ticker: string;
-    metrics: {
-      cagr: number;
-      max_drawdown: number;
+    metrics: Metrics;
+  };
+  strategy?: {
+    regime_filter?: {
+      benchmark?: string;
+      ma_window?: number;
+      risk_on_exposure?: number;
+      risk_off_exposure?: number;
     };
   };
 };
 
-type CurvePoint = {
+type BaseCurvePoint = {
   date: string;
   strategy: number;
   benchmark: number;
+};
+
+type RegimeCurvePoint = {
+  date: string;
+  strategy: number;
+  benchmark: number;
+  exposure?: number;
+};
+
+type MergedCurvePoint = {
+  date: string;
+  spy?: number;
+  base?: number;
+  regime?: number;
 };
 
 type ScoreCorrelationRow = {
@@ -49,20 +71,85 @@ type ScoreCorrelation = {
   data: ScoreCorrelationRow[];
 };
 
+function MetricCard({
+  title,
+  cagr,
+  sharpe,
+  mdd,
+  vol,
+  subtitle,
+}: {
+  title: string;
+  cagr: number;
+  sharpe: number;
+  mdd: number;
+  vol?: number;
+  subtitle?: string;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid #ddd",
+        borderRadius: 16,
+        padding: 18,
+        background: "#fff",
+      }}
+    >
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      {subtitle ? (
+        <div style={{ color: "#666", fontSize: 13, marginBottom: 12 }}>{subtitle}</div>
+      ) : null}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div>
+          <div style={{ color: "#666", fontSize: 13 }}>CAGR</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{(cagr * 100).toFixed(1)}%</div>
+        </div>
+        <div>
+          <div style={{ color: "#666", fontSize: 13 }}>Sharpe</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{sharpe.toFixed(2)}</div>
+        </div>
+        <div>
+          <div style={{ color: "#666", fontSize: 13 }}>Max Drawdown</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{(mdd * 100).toFixed(1)}%</div>
+        </div>
+        <div>
+          <div style={{ color: "#666", fontSize: 13 }}>Volatility</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>
+            {vol != null ? `${(vol * 100).toFixed(1)}%` : "-"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BacktestPage() {
-  const [curve, setCurve] = useState<CurvePoint[]>([]);
-  const [summary, setSummary] = useState<BacktestSummary | null>(null);
+  const [baseSummary, setBaseSummary] = useState<BacktestSummary | null>(null);
+  const [regimeSummary, setRegimeSummary] = useState<BacktestSummary | null>(null);
+  const [baseCurve, setBaseCurve] = useState<BaseCurvePoint[]>([]);
+  const [regimeCurve, setRegimeCurve] = useState<RegimeCurvePoint[]>([]);
   const [scoreCorr, setScoreCorr] = useState<ScoreCorrelation | null>(null);
 
   useEffect(() => {
     fetch("/data/backtest_result.json")
       .then((r) => r.json())
-      .then((data) => setSummary(data))
+      .then((data) => setBaseSummary(data))
+      .catch(() => {});
+
+    fetch("/data/backtest_regime_result.json")
+      .then((r) => r.json())
+      .then((data) => setRegimeSummary(data))
       .catch(() => {});
 
     fetch("/data/equity_curve.json")
       .then((r) => r.json())
-      .then((data) => setCurve(data))
+      .then((data) => setBaseCurve(data))
+      .catch(() => {});
+
+    fetch("/data/equity_curve_regime.json")
+      .then((r) => r.json())
+      .then((data) => setRegimeCurve(data))
       .catch(() => {});
 
     fetch("/data/score_correlation.json")
@@ -71,69 +158,79 @@ export default function BacktestPage() {
       .catch(() => {});
   }, []);
 
-  if (!summary) {
-    return <div style={{ padding: 40 }}>Loading...</div>;
-  }
+  const mergedCurve: MergedCurvePoint[] = useMemo(() => {
+    const map = new Map<string, MergedCurvePoint>();
 
-  const m = summary.metrics;
-  const b = summary.benchmark.metrics;
+    for (const row of baseCurve) {
+      map.set(row.date, {
+        date: row.date,
+        base: row.strategy,
+        spy: row.benchmark,
+      });
+    }
+
+    for (const row of regimeCurve) {
+      const existing = map.get(row.date) ?? { date: row.date };
+      existing.regime = row.strategy;
+      if (existing.spy == null) existing.spy = row.benchmark;
+      map.set(row.date, existing);
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [baseCurve, regimeCurve]);
 
   const corrChartData =
     scoreCorr?.data?.map((x) => ({
       quantile: x.quantile,
       avg_return_pct: x.avg_return * 100,
-      median_return_pct: x.median_return * 100,
-      count: x.count,
-      avg_score: x.avg_score,
     })) ?? [];
 
+  if (!baseSummary || !regimeSummary) {
+    return <div style={{ padding: 40 }}>Loading...</div>;
+  }
+
+  const base = baseSummary.metrics;
+  const regime = regimeSummary.metrics;
+  const spy = regimeSummary.benchmark.metrics;
+  const regimeInfo = regimeSummary.strategy?.regime_filter;
+
   return (
-    <div style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 24 }}>
-        Strategy Backtest
-      </h1>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 20,
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <div style={{ color: "#666" }}>CAGR</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>
-            {(m.cagr * 100).toFixed(1)}%
-          </div>
-        </div>
-
-        <div>
-          <div style={{ color: "#666" }}>Sharpe</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>
-            {m.sharpe.toFixed(2)}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ color: "#666" }}>Max Drawdown</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>
-            {(m.max_drawdown * 100).toFixed(1)}%
-          </div>
-        </div>
-
-        <div>
-          <div style={{ color: "#666" }}>Volatility</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>
-            {(m.volatility * 100).toFixed(1)}%
-          </div>
-        </div>
+    <div style={{ padding: 40, maxWidth: 1240, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Backtest Comparison</h1>
+      <div style={{ color: "#555", marginBottom: 24 }}>
+        Base strategy vs regime-filtered strategy
+        {regimeInfo
+          ? ` · ${regimeInfo.benchmark ?? "SPY"} ${regimeInfo.ma_window ?? 200}DMA · Risk-off exposure ${((regimeInfo.risk_off_exposure ?? 0) * 100).toFixed(0)}%`
+          : ""}
       </div>
 
-      <div style={{ marginBottom: 32, color: "#444" }}>
-        Benchmark ({summary.benchmark.ticker}) CAGR{" "}
-        <strong>{(b.cagr * 100).toFixed(1)}%</strong>, MDD{" "}
-        <strong>{(b.max_drawdown * 100).toFixed(1)}%</strong>
+      <div style={{ display: "grid", gap: 16, marginBottom: 24 }}>
+        <MetricCard
+          title="Base Strategy"
+          subtitle="Momentum + sector strength + risk filter"
+          cagr={base.cagr}
+          sharpe={base.sharpe}
+          mdd={base.max_drawdown}
+          vol={base.volatility}
+        />
+
+        <MetricCard
+          title="Regime-Filtered Strategy"
+          subtitle="Base strategy with SPY 200DMA exposure scaling"
+          cagr={regime.cagr}
+          sharpe={regime.sharpe}
+          mdd={regime.max_drawdown}
+          vol={regime.volatility}
+        />
+
+        <MetricCard
+          title={`Benchmark (${regimeSummary.benchmark.ticker})`}
+          subtitle="Passive benchmark reference"
+          cagr={spy.cagr}
+          sharpe={spy.sharpe}
+          mdd={spy.max_drawdown}
+          vol={spy.volatility}
+        />
       </div>
 
       <div
@@ -146,11 +243,11 @@ export default function BacktestPage() {
         }}
       >
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
-          Strategy vs SPY
+          SPY vs Base vs Regime
         </h2>
 
-        <ResponsiveContainer width="100%" height={420}>
-          <LineChart data={curve}>
+        <ResponsiveContainer width="100%" height={460}>
+          <LineChart data={mergedCurve}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" minTickGap={40} />
             <YAxis domain={["auto", "auto"]} />
@@ -158,17 +255,25 @@ export default function BacktestPage() {
             <Legend />
             <Line
               type="monotone"
-              dataKey="strategy"
-              name="Strategy"
+              dataKey="spy"
+              name="SPY"
+              stroke="#16a34a"
+              dot={false}
+              strokeWidth={2}
+            />
+            <Line
+              type="monotone"
+              dataKey="base"
+              name="Base Strategy"
               stroke="#2563eb"
               dot={false}
               strokeWidth={2}
             />
             <Line
               type="monotone"
-              dataKey="benchmark"
-              name="SPY"
-              stroke="#16a34a"
+              dataKey="regime"
+              name="Regime Strategy"
+              stroke="#dc2626"
               dot={false}
               strokeWidth={2}
             />

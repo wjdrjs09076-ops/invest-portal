@@ -37,16 +37,18 @@ export default function BacktestSummary() {
     <div className="border rounded-xl p-6 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-2xl font-semibold">Strategy Backtest (3Y)</h2>
+          <h2 className="text-2xl font-semibold">Recommended Strategy (3Y)</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Regime-filtered strategy summary
+            Regime-filtered production model
           </p>
         </div>
 
         {regime && (
           <div className="text-xs text-gray-500 text-right">
             <div>SPY {regime.ma_window}DMA filter</div>
-            <div>Risk-off exposure {((regime.risk_off_exposure ?? 0) * 100).toFixed(0)}%</div>
+            <div>
+              Risk-off exposure {((regime.risk_off_exposure ?? 0) * 100).toFixed(0)}%
+            </div>
           </div>
         )}
       </div>
@@ -74,11 +76,8 @@ export default function BacktestSummary() {
         </div>
       </div>
 
-      <Link
-        href="/strategy"
-        className="text-sm text-blue-600 hover:underline"
-      >
-        View Strategy Lab →
+      <Link href="/backtest" className="text-sm text-blue-600 hover:underline">
+        Compare Base vs Regime →
       </Link>
     </div>
   );
