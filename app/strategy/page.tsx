@@ -57,27 +57,59 @@ type SectorExposureJson = {
   avg_sector_exposure?: SectorExposureRow[];
 };
 
+type RegimeJson = {
+  metrics?: {
+    cagr?: number;
+    sharpe?: number;
+    max_drawdown?: number;
+    total_return?: number;
+    volatility?: number;
+  };
+  strategy?: {
+    regime_filter?: {
+      ma_window?: number;
+      risk_on_exposure?: number;
+      risk_off_exposure?: number;
+    };
+  };
+};
+
+type FactorJson = {
+  average_factor_scores?: {
+    momentum_21d?: number;
+    momentum_63d?: number;
+    sector?: number;
+    risk?: number;
+  };
+};
+
 export default function StrategyPage() {
   const [backtest, setBacktest] = useState<BacktestJson | null>(null);
   const [corr, setCorr] = useState<ScoreCorrelationJson | null>(null);
   const [topn, setTopn] = useState<TopNJson | null>(null);
   const [sector, setSector] = useState<SectorExposureJson | null>(null);
+  const [regime, setRegime] = useState<RegimeJson | null>(null);
+  const [factor, setFactor] = useState<FactorJson | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [b, c, t, s] = await Promise.all([
-          fetch("/data/backtest_result.json").then((r) => r.json()),
-          fetch("/data/score_correlation.json").then((r) => r.json()),
-          fetch("/data/topn_sensitivity.json").then((r) => r.json()),
-          fetch("/data/sector_exposure.json").then((r) => r.json()),
+        const [b, c, t, s, r, f] = await Promise.all([
+          fetch("/data/backtest_result.json").then((res) => res.json()),
+          fetch("/data/score_correlation.json").then((res) => res.json()),
+          fetch("/data/topn_sensitivity.json").then((res) => res.json()),
+          fetch("/data/sector_exposure.json").then((res) => res.json()),
+          fetch("/data/backtest_regime_result.json").then((res) => res.json()).catch(() => null),
+          fetch("/data/factor_decomposition.json").then((res) => res.json()).catch(() => null),
         ]);
 
         setBacktest(b);
         setCorr(c);
         setTopn(t);
         setSector(s);
+        setRegime(r);
+        setFactor(f);
       } catch (e) {
         setError("Failed to load strategy data.");
         console.error(e);
@@ -95,7 +127,6 @@ export default function StrategyPage() {
     corr?.data?.map((row) => ({
       quantile: row.quantile,
       avgReturnPct: (row.avg_return ?? 0) * 100,
-      avgScore: row.avg_score ?? 0,
     })) ?? [];
 
   const topnChartData =
@@ -103,7 +134,6 @@ export default function StrategyPage() {
       topN: `Top ${row.top_n}`,
       cagrPct: (row.metrics.cagr ?? 0) * 100,
       sharpe: row.metrics.sharpe ?? 0,
-      mddPct: ((row.metrics.max_drawdown ?? 0) * 100) * -1,
     })) ?? [];
 
   const sectorChartData =
@@ -111,6 +141,15 @@ export default function StrategyPage() {
       sector: row.sector,
       weightPct: (row.weight ?? 0) * 100,
     })) ?? [];
+
+  const factorChartData = factor?.average_factor_scores
+    ? [
+        { factor: "Momentum 21D", value: (factor.average_factor_scores.momentum_21d ?? 0) * 100 },
+        { factor: "Momentum 63D", value: (factor.average_factor_scores.momentum_63d ?? 0) * 100 },
+        { factor: "Sector", value: (factor.average_factor_scores.sector ?? 0) * 100 },
+        { factor: "Risk", value: (factor.average_factor_scores.risk ?? 0) * 100 },
+      ]
+    : [];
 
   return (
     <main className="mx-auto max-w-6xl p-8 space-y-8">
@@ -195,6 +234,69 @@ export default function StrategyPage() {
                 <Line type="monotone" dataKey="sharpe" name="Sharpe" stroke="#2563eb" strokeWidth={2} />
                 <Line type="monotone" dataKey="cagrPct" name="CAGR %" stroke="#16a34a" strokeWidth={2} />
               </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border bg-white p-5 shadow-sm">
+          <h2 className="mb-2 text-xl font-semibold">Market Regime Filter Impact</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            SPY vs 200DMA filter scales exposure in risk-off markets.
+          </p>
+
+          {regime?.metrics ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Regime CAGR</div>
+                <div className="text-2xl font-bold">
+                  {((regime.metrics.cagr ?? 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Regime Sharpe</div>
+                <div className="text-2xl font-bold">
+                  {(regime.metrics.sharpe ?? 0).toFixed(2)}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Regime MDD</div>
+                <div className="text-2xl font-bold">
+                  {((regime.metrics.max_drawdown ?? 0) * 100).toFixed(1)}%
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Risk-Off Exposure</div>
+                <div className="text-2xl font-bold">
+                  {(((regime.strategy?.regime_filter?.risk_off_exposure ?? 0) as number) * 100).toFixed(0)}%
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">Run regime backtest first.</div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border bg-white p-5 shadow-sm">
+          <h2 className="mb-2 text-xl font-semibold">Factor Decomposition</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            Average percentile contribution of each factor among selected holdings.
+          </p>
+
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={factorChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="factor" />
+                <YAxis tickFormatter={(v) => `${Number(v).toFixed(0)}`} />
+                <Tooltip formatter={(v) => `${Number(v).toFixed(1)}`} />
+                <Legend />
+                <Bar dataKey="value" name="Avg Factor Score" fill="#dc2626" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
