@@ -33,13 +33,26 @@ type BacktestSummary = {
   benchmark: {
     ticker: string;
     metrics: Metrics;
+    subperiods?: SubPeriod[];
   };
   strategy?: {
+    top_n?: number;
+    portfolio_construction?: {
+      score_alpha?: number;
+      absolute_momentum_63d_min?: number;
+      absolute_momentum_252d_min?: number;
+      sector_max_names?: number;
+    };
     regime_filter?: {
       benchmark?: string;
       ma_window?: number;
+      momentum_window?: number;
+      stock_rebalance?: string;
+      exposure_rebalance?: string;
       risk_on_exposure?: number;
+      mid_exposure?: number;
       risk_off_exposure?: number;
+      defensive_tickers?: string[];
     };
   };
 };
@@ -132,9 +145,44 @@ function MetricCard({
 
 function getMetricsByPeriod(summary: BacktestSummary, period: "3y" | "5y" | "10y"): Metrics {
   if (period === "10y") return summary.metrics;
-
   const found = summary.subperiods?.find((p) => p.label === period);
   return found?.metrics ?? summary.metrics;
+}
+
+function getBenchmarkMetricsByPeriod(
+  summary: BacktestSummary,
+  period: "3y" | "5y" | "10y"
+): Metrics {
+  if (period === "10y") return summary.benchmark.metrics;
+  const found = summary.benchmark.subperiods?.find((p) => p.label === period);
+  return found?.metrics ?? summary.benchmark.metrics;
+}
+
+function getPeriodStartDate(period: "3y" | "5y" | "10y"): Date | null {
+  if (period === "10y") return null;
+  const years = period === "5y" ? 5 : 3;
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - years);
+  return cutoff;
+}
+
+function rebaseCurve(points: MergedCurvePoint[]): MergedCurvePoint[] {
+  if (!points.length) return [];
+
+  const firstSpy = points.find((p) => p.spy != null)?.spy;
+  const firstBase = points.find((p) => p.base != null)?.base;
+  const firstRegime = points.find((p) => p.regime != null)?.regime;
+
+  return points.map((p) => ({
+    date: p.date,
+    spy: p.spy != null && firstSpy != null && firstSpy !== 0 ? p.spy / firstSpy : undefined,
+    base:
+      p.base != null && firstBase != null && firstBase !== 0 ? p.base / firstBase : undefined,
+    regime:
+      p.regime != null && firstRegime != null && firstRegime !== 0
+        ? p.regime / firstRegime
+        : undefined,
+  }));
 }
 
 export default function BacktestPage() {
@@ -197,13 +245,13 @@ export default function BacktestPage() {
   const filteredCurve: MergedCurvePoint[] = useMemo(() => {
     if (!mergedCurve.length) return [];
 
-    if (period === "10y") return mergedCurve;
+    const cutoff = getPeriodStartDate(period);
+    const sliced =
+      cutoff == null
+        ? mergedCurve
+        : mergedCurve.filter((row) => new Date(row.date) >= cutoff);
 
-    const years = period === "5y" ? 5 : 3;
-    const cutoff = new Date();
-    cutoff.setFullYear(cutoff.getFullYear() - years);
-
-    return mergedCurve.filter((row) => new Date(row.date) >= cutoff);
+    return rebaseCurve(sliced);
   }, [mergedCurve, period]);
 
   const corrChartData =
@@ -218,10 +266,7 @@ export default function BacktestPage() {
 
   const base = getMetricsByPeriod(baseSummary, period);
   const regime = getMetricsByPeriod(regimeSummary, period);
-  const spy =
-    period === "10y"
-      ? regimeSummary.benchmark.metrics
-      : regimeSummary.benchmark.metrics;
+  const spy = getBenchmarkMetricsByPeriod(regimeSummary, period);
   const regimeInfo = regimeSummary.strategy?.regime_filter;
 
   return (
@@ -295,6 +340,10 @@ export default function BacktestPage() {
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
           SPY vs Base vs Regime ({period.toUpperCase()})
         </h2>
+
+        <div style={{ color: "#666", marginBottom: 12 }}>
+          Rebased to 1.0 at the start of the selected period
+        </div>
 
         <ResponsiveContainer width="100%" height={460}>
           <LineChart data={filteredCurve}>
