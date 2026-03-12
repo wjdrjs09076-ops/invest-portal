@@ -4,8 +4,9 @@
     "selection": "BUY",
     "top_n": 10,
     "transaction_cost": 0.0015,
-    "period_years": 3,
+    "period_years": 10,
     "execution_lag_days": 1,
+    "universe_method": "point_in_time_sp500_membership_from_wikipedia_events",
     "portfolio_construction": {
       "method": "score_x_inverse_vol",
       "score_alpha": 1.0,
@@ -23,28 +24,61 @@
     }
   },
   "metrics": {
-    "total_return": 2.051256294582108,
-    "cagr": 0.3529386268164032,
-    "volatility": 0.227043443339492,
-    "sharpe": 1.5544982124353333,
-    "max_drawdown": -0.15862597083762875
+    "total_return": 2.8229962470394336,
+    "cagr": 0.13380793736892294,
+    "volatility": 0.18983018017295764,
+    "sharpe": 0.7048823176957856,
+    "max_drawdown": -0.17383693986248838
   },
+  "subperiods": [
+    {
+      "label": "3y",
+      "metrics": {
+        "total_return": 0.8146758076090996,
+        "cagr": 0.21973742615972935,
+        "volatility": 0.2034877197387646,
+        "sharpe": 1.0798559561325174,
+        "max_drawdown": -0.13649440009721336
+      }
+    },
+    {
+      "label": "5y",
+      "metrics": {
+        "total_return": 0.9398939673679931,
+        "cagr": 0.14170945721634443,
+        "volatility": 0.19556983101432462,
+        "sharpe": 0.7245977382164064,
+        "max_drawdown": -0.17383693986248838
+      }
+    },
+    {
+      "label": "10y",
+      "metrics": {
+        "total_return": 2.686747970790542,
+        "cagr": 0.13936885835630775,
+        "volatility": 0.1935416403484151,
+        "sharpe": 0.7200975361447537,
+        "max_drawdown": -0.17383693986248838
+      }
+    }
+  ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 0.8263910172673288,
-      "cagr": 0.1772900434492417,
-      "volatility": 0.16492295981146474,
-      "sharpe": 1.0749870342608128,
-      "max_drawdown": -0.1875523263580976
+      "total_return": 2.9281280660830715,
+      "cagr": 0.1366919968547471,
+      "volatility": 0.17914474660138371,
+      "sharpe": 0.7630254274712361,
+      "max_drawdown": -0.3371725923864721
     }
   },
   "notes": [
-    "Universe based on current constituents (survivorship bias possible)",
-    "Ranking uses historical slice through rebalance date close",
-    "Selected portfolio is applied with a 1-day execution lag",
-    "Transaction cost is applied when holdings change on execution day",
-    "Regime filter uses SPY vs 200DMA to scale exposure",
-    "Portfolio weights use score × inverse volatility weighting instead of equal weighting"
+    "Universe is reconstructed point-in-time using current S&P500 membership plus Wikipedia change events.",
+    "Ranking uses historical slice through rebalance date close.",
+    "Selected portfolio is applied with a 1-day execution lag.",
+    "Transaction cost is applied when holdings change on execution day.",
+    "Regime filter uses SPY vs 200DMA to scale exposure.",
+    "Portfolio weights use score × inverse volatility weighting instead of equal weighting.",
+    "Historical membership reconstruction depends on the quality of parsed Wikipedia change events."
   ]
 }

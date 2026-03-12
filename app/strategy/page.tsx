@@ -14,13 +14,22 @@ import {
   Legend,
 } from "recharts";
 
+type Metrics = {
+  cagr?: number;
+  sharpe?: number;
+  max_drawdown?: number;
+  total_return?: number;
+  volatility?: number;
+};
+
+type SubPeriod = {
+  label: string;
+  metrics: Metrics;
+};
+
 type BacktestJson = {
-  metrics?: {
-    cagr?: number;
-    sharpe?: number;
-    max_drawdown?: number;
-    total_return?: number;
-  };
+  metrics?: Metrics;
+  subperiods?: SubPeriod[];
 };
 
 type ScoreCorrelationRow = {
@@ -58,13 +67,8 @@ type SectorExposureJson = {
 };
 
 type RegimeJson = {
-  metrics?: {
-    cagr?: number;
-    sharpe?: number;
-    max_drawdown?: number;
-    total_return?: number;
-    volatility?: number;
-  };
+  metrics?: Metrics;
+  subperiods?: SubPeriod[];
   strategy?: {
     regime_filter?: {
       ma_window?: number;
@@ -83,7 +87,20 @@ type FactorJson = {
   };
 };
 
+function getMetricsByPeriod<T extends { metrics?: Metrics; subperiods?: SubPeriod[] }>(
+  summary: T | null,
+  period: "3y" | "5y" | "10y"
+): Metrics | null {
+  if (!summary?.metrics) return null;
+  if (period === "10y") return summary.metrics;
+
+  const found = summary.subperiods?.find((p) => p.label === period);
+  return found?.metrics ?? summary.metrics;
+}
+
 export default function StrategyPage() {
+  const [period, setPeriod] = useState<"3y" | "5y" | "10y">("10y");
+
   const [backtest, setBacktest] = useState<BacktestJson | null>(null);
   const [corr, setCorr] = useState<ScoreCorrelationJson | null>(null);
   const [topn, setTopn] = useState<TopNJson | null>(null);
@@ -100,8 +117,12 @@ export default function StrategyPage() {
           fetch("/data/score_correlation.json").then((res) => res.json()),
           fetch("/data/topn_sensitivity.json").then((res) => res.json()),
           fetch("/data/sector_exposure.json").then((res) => res.json()),
-          fetch("/data/backtest_regime_result.json").then((res) => res.json()).catch(() => null),
-          fetch("/data/factor_decomposition.json").then((res) => res.json()).catch(() => null),
+          fetch("/data/backtest_regime_result.json")
+            .then((res) => res.json())
+            .catch(() => null),
+          fetch("/data/factor_decomposition.json")
+            .then((res) => res.json())
+            .catch(() => null),
         ]);
 
         setBacktest(b);
@@ -122,6 +143,9 @@ export default function StrategyPage() {
   if (error) {
     return <main className="mx-auto max-w-6xl p-8">{error}</main>;
   }
+
+  const selectedBacktestMetrics = getMetricsByPeriod(backtest, period);
+  const selectedRegimeMetrics = getMetricsByPeriod(regime, period);
 
   const corrChartData =
     corr?.data?.map((row) => ({
@@ -160,36 +184,52 @@ export default function StrategyPage() {
         </p>
       </div>
 
-      {backtest?.metrics && (
+      <div className="flex gap-2">
+        {(["3y", "5y", "10y"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+              period === p
+                ? "bg-black text-white border-black"
+                : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            {p.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {selectedBacktestMetrics && (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Backtest Performance</h2>
+          <h2 className="text-xl font-semibold">Backtest Performance ({period.toUpperCase()})</h2>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">CAGR</div>
               <div className="text-2xl font-bold">
-                {((backtest.metrics.cagr ?? 0) * 100).toFixed(1)}%
+                {((selectedBacktestMetrics.cagr ?? 0) * 100).toFixed(1)}%
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Sharpe</div>
               <div className="text-2xl font-bold">
-                {(backtest.metrics.sharpe ?? 0).toFixed(2)}
+                {(selectedBacktestMetrics.sharpe ?? 0).toFixed(2)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Max Drawdown</div>
               <div className="text-2xl font-bold">
-                {((backtest.metrics.max_drawdown ?? 0) * 100).toFixed(1)}%
+                {((selectedBacktestMetrics.max_drawdown ?? 0) * 100).toFixed(1)}%
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Total Return</div>
               <div className="text-2xl font-bold">
-                {((backtest.metrics.total_return ?? 0) * 100).toFixed(0)}%
+                {((selectedBacktestMetrics.total_return ?? 0) * 100).toFixed(0)}%
               </div>
             </div>
           </div>
@@ -231,8 +271,20 @@ export default function StrategyPage() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="sharpe" name="Sharpe" stroke="#2563eb" strokeWidth={2} />
-                <Line type="monotone" dataKey="cagrPct" name="CAGR %" stroke="#16a34a" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="sharpe"
+                  name="Sharpe"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cagrPct"
+                  name="CAGR %"
+                  stroke="#16a34a"
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -241,38 +293,40 @@ export default function StrategyPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <h2 className="mb-2 text-xl font-semibold">Market Regime Filter Impact</h2>
+          <h2 className="mb-2 text-xl font-semibold">
+            Market Regime Filter Impact ({period.toUpperCase()})
+          </h2>
           <p className="mb-4 text-sm text-gray-600">
             SPY vs 200DMA filter scales exposure in risk-off markets.
           </p>
 
-          {regime?.metrics ? (
+          {selectedRegimeMetrics ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime CAGR</div>
                 <div className="text-2xl font-bold">
-                  {((regime.metrics.cagr ?? 0) * 100).toFixed(1)}%
+                  {((selectedRegimeMetrics.cagr ?? 0) * 100).toFixed(1)}%
                 </div>
               </div>
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime Sharpe</div>
                 <div className="text-2xl font-bold">
-                  {(regime.metrics.sharpe ?? 0).toFixed(2)}
+                  {(selectedRegimeMetrics.sharpe ?? 0).toFixed(2)}
                 </div>
               </div>
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime MDD</div>
                 <div className="text-2xl font-bold">
-                  {((regime.metrics.max_drawdown ?? 0) * 100).toFixed(1)}%
+                  {((selectedRegimeMetrics.max_drawdown ?? 0) * 100).toFixed(1)}%
                 </div>
               </div>
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Risk-Off Exposure</div>
                 <div className="text-2xl font-bold">
-                  {(((regime.strategy?.regime_filter?.risk_off_exposure ?? 0) as number) * 100).toFixed(0)}%
+                  {(((regime?.strategy?.regime_filter?.risk_off_exposure ?? 0) as number) * 100).toFixed(0)}%
                 </div>
               </div>
             </div>

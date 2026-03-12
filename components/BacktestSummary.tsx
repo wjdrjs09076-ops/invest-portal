@@ -3,12 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+type Metrics = {
+  cagr?: number;
+  sharpe?: number;
+  max_drawdown?: number;
+};
+
+type SubPeriod = {
+  label: string;
+  metrics: Metrics;
+};
+
 type BacktestSummaryData = {
-  metrics?: {
-    cagr?: number;
-    sharpe?: number;
-    max_drawdown?: number;
-  };
+  metrics?: Metrics;
+  subperiods?: SubPeriod[];
   strategy?: {
     regime_filter?: {
       ma_window?: number;
@@ -30,7 +38,7 @@ export default function BacktestSummary() {
 
   if (!data?.metrics) return null;
 
-  const m = data.metrics;
+  const m = data.subperiods?.find((p) => p.label === "3y")?.metrics ?? data.metrics;
   const regime = data.strategy?.regime_filter;
 
   return (
@@ -77,7 +85,7 @@ export default function BacktestSummary() {
       </div>
 
       <Link href="/backtest" className="text-sm text-blue-600 hover:underline">
-        Compare Base vs Regime →
+        Compare 3Y / 5Y / 10Y →
       </Link>
     </div>
   );

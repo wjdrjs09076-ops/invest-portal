@@ -22,8 +22,14 @@ type Metrics = {
   total_return?: number;
 };
 
+type SubPeriod = {
+  label: string;
+  metrics: Metrics;
+};
+
 type BacktestSummary = {
   metrics: Metrics;
+  subperiods?: SubPeriod[];
   benchmark: {
     ticker: string;
     metrics: Metrics;
@@ -124,7 +130,16 @@ function MetricCard({
   );
 }
 
+function getMetricsByPeriod(summary: BacktestSummary, period: "3y" | "5y" | "10y"): Metrics {
+  if (period === "10y") return summary.metrics;
+
+  const found = summary.subperiods?.find((p) => p.label === period);
+  return found?.metrics ?? summary.metrics;
+}
+
 export default function BacktestPage() {
+  const [period, setPeriod] = useState<"3y" | "5y" | "10y">("10y");
+
   const [baseSummary, setBaseSummary] = useState<BacktestSummary | null>(null);
   const [regimeSummary, setRegimeSummary] = useState<BacktestSummary | null>(null);
   const [baseCurve, setBaseCurve] = useState<BaseCurvePoint[]>([]);
@@ -179,6 +194,18 @@ export default function BacktestPage() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   }, [baseCurve, regimeCurve]);
 
+  const filteredCurve: MergedCurvePoint[] = useMemo(() => {
+    if (!mergedCurve.length) return [];
+
+    if (period === "10y") return mergedCurve;
+
+    const years = period === "5y" ? 5 : 3;
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - years);
+
+    return mergedCurve.filter((row) => new Date(row.date) >= cutoff);
+  }, [mergedCurve, period]);
+
   const corrChartData =
     scoreCorr?.data?.map((x) => ({
       quantile: x.quantile,
@@ -189,24 +216,47 @@ export default function BacktestPage() {
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  const base = baseSummary.metrics;
-  const regime = regimeSummary.metrics;
-  const spy = regimeSummary.benchmark.metrics;
+  const base = getMetricsByPeriod(baseSummary, period);
+  const regime = getMetricsByPeriod(regimeSummary, period);
+  const spy =
+    period === "10y"
+      ? regimeSummary.benchmark.metrics
+      : regimeSummary.benchmark.metrics;
   const regimeInfo = regimeSummary.strategy?.regime_filter;
 
   return (
     <div style={{ padding: 40, maxWidth: 1240, margin: "0 auto" }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Backtest Comparison</h1>
-      <div style={{ color: "#555", marginBottom: 24 }}>
+      <div style={{ color: "#555", marginBottom: 16 }}>
         Base strategy vs regime-filtered strategy
         {regimeInfo
           ? ` · ${regimeInfo.benchmark ?? "SPY"} ${regimeInfo.ma_window ?? 200}DMA · Risk-off exposure ${((regimeInfo.risk_off_exposure ?? 0) * 100).toFixed(0)}%`
           : ""}
       </div>
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {(["3y", "5y", "10y"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: period === p ? "#111" : "#fff",
+              color: period === p ? "#fff" : "#111",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            {p.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
       <div style={{ display: "grid", gap: 16, marginBottom: 24 }}>
         <MetricCard
-          title="Base Strategy"
+          title={`Base Strategy (${period.toUpperCase()})`}
           subtitle="Momentum + sector strength + risk filter"
           cagr={base.cagr}
           sharpe={base.sharpe}
@@ -215,7 +265,7 @@ export default function BacktestPage() {
         />
 
         <MetricCard
-          title="Regime-Filtered Strategy"
+          title={`Regime-Filtered Strategy (${period.toUpperCase()})`}
           subtitle="Base strategy with SPY 200DMA exposure scaling"
           cagr={regime.cagr}
           sharpe={regime.sharpe}
@@ -225,7 +275,7 @@ export default function BacktestPage() {
 
         <MetricCard
           title={`Benchmark (${regimeSummary.benchmark.ticker})`}
-          subtitle="Passive benchmark reference"
+          subtitle={`${period.toUpperCase()} benchmark reference`}
           cagr={spy.cagr}
           sharpe={spy.sharpe}
           mdd={spy.max_drawdown}
@@ -243,11 +293,11 @@ export default function BacktestPage() {
         }}
       >
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
-          SPY vs Base vs Regime
+          SPY vs Base vs Regime ({period.toUpperCase()})
         </h2>
 
         <ResponsiveContainer width="100%" height={460}>
-          <LineChart data={mergedCurve}>
+          <LineChart data={filteredCurve}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" minTickGap={40} />
             <YAxis domain={["auto", "auto"]} />
@@ -305,11 +355,7 @@ export default function BacktestPage() {
             <YAxis tickFormatter={(value) => `${Number(value).toFixed(1)}%`} />
             <Tooltip formatter={(value) => `${Number(value).toFixed(2)}%`} />
             <Legend />
-            <Bar
-              dataKey="avg_return_pct"
-              name="Avg Forward Return"
-              fill="#7c3aed"
-            />
+            <Bar dataKey="avg_return_pct" name="Avg Forward Return" fill="#7c3aed" />
           </BarChart>
         </ResponsiveContainer>
       </div>
