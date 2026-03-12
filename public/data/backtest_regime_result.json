@@ -9,13 +9,13 @@
     "universe_method": "point_in_time_sp500_membership_from_wikipedia_events",
     "portfolio_construction": {
       "method": "score_x_inverse_vol",
-      "score_alpha": 1.5,
+      "score_alpha": 1.8,
       "min_weight": 0.1,
       "max_weight": 0.35,
       "vol_fallback": 0.35,
       "vol_floor": 0.18,
-      "absolute_momentum_63d_min": 0.0,
-      "absolute_momentum_252d_min": 0.0,
+      "absolute_momentum_63d_min": -5.0,
+      "absolute_momentum_252d_min": -10.0,
       "sector_max_names": 3,
       "formula": "weight_i ∝ (score_i ^ alpha) / max(vol20_i, vol_floor)"
     },
@@ -26,8 +26,8 @@
       "stock_rebalance": "monthly",
       "exposure_rebalance": "weekly",
       "risk_on_exposure": 1.0,
-      "mid_exposure": 0.8,
-      "risk_off_exposure": 0.65,
+      "mid_exposure": 0.85,
+      "risk_off_exposure": 0.55,
       "defensive_tickers": [
         "SHY"
       ],
@@ -35,52 +35,52 @@
     }
   },
   "metrics": {
-    "total_return": 2.02987987806512,
-    "cagr": 0.1076192319717435,
-    "volatility": 0.16715315409764306,
-    "sharpe": 0.6438360828589413,
-    "max_drawdown": -0.2826017874240234
+    "total_return": 2.0983331291463574,
+    "cagr": 0.10990328974787755,
+    "volatility": 0.17146413802299365,
+    "sharpe": 0.6409695404244783,
+    "max_drawdown": -0.2662208495371471
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.8226168728889298,
-        "cagr": 0.22151403734816189,
-        "volatility": 0.1661061071332729,
-        "sharpe": 1.3335694946509897,
-        "max_drawdown": -0.12628547459229578
+        "total_return": 0.7990700813821914,
+        "cagr": 0.21623088329437867,
+        "volatility": 0.1794320790266175,
+        "sharpe": 1.2050848681427935,
+        "max_drawdown": -0.13904904020068465
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.8483165536948747,
-        "cagr": 0.13072051199861878,
-        "volatility": 0.16443815564918116,
-        "sharpe": 0.7949524335307133,
-        "max_drawdown": -0.13763411447855356
+        "total_return": 0.8321735629316644,
+        "cagr": 0.1287384580508668,
+        "volatility": 0.17437143804933258,
+        "sharpe": 0.7383001453164856,
+        "max_drawdown": -0.16143574667212612
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 2.103664234423799,
-        "cagr": 0.11992121877892381,
-        "volatility": 0.16930860086039903,
-        "sharpe": 0.7082996266551345,
-        "max_drawdown": -0.2826017874240234
+        "total_return": 2.060248971243384,
+        "cagr": 0.11834467980524788,
+        "volatility": 0.17350072756817844,
+        "sharpe": 0.6820990405284809,
+        "max_drawdown": -0.2662208495371472
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.8506953436729274,
-      "cagr": 0.13237543225202963,
-      "volatility": 0.17829457398433152,
-      "sharpe": 0.7424535099069406,
-      "max_drawdown": -0.33717259238647224
+      "total_return": 2.8506956782065425,
+      "cagr": 0.13237544132296208,
+      "volatility": 0.1782944773068536,
+      "sharpe": 0.7424539633672299,
+      "max_drawdown": -0.3371725271441378
     }
   },
   "notes": [
@@ -90,7 +90,7 @@
     "Exposure signal is applied with a 1-day execution lag.",
     "Transaction cost is applied when total portfolio weights change on execution day.",
     "Stock selection is monthly, while exposure adjustment is weekly.",
-    "Absolute momentum filter requires both 63D and 252D return to be positive.",
+    "Absolute momentum filter is relaxed: 63D return > -5% and 252D return > -10%.",
     "Sector cap limits selected names to reduce concentration risk.",
     "Risk-off sleeve uses SHY only."
   ]
