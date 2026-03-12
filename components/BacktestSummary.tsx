@@ -14,18 +14,30 @@ type SubPeriod = {
   metrics: Metrics;
 };
 
+type PortfolioConstruction = {
+  score_alpha?: number;
+  absolute_momentum_63d_min?: number;
+  absolute_momentum_252d_min?: number;
+  sector_max_names?: number;
+};
+
 type RegimeFilter = {
   ma_window?: number;
+  momentum_window?: number;
+  stock_rebalance?: string;
+  exposure_rebalance?: string;
   risk_on_exposure?: number;
+  mid_exposure?: number;
   risk_off_exposure?: number;
   defensive_tickers?: string[];
-  risk_off_defensive_weights?: Record<string, number>;
 };
 
 type BacktestSummaryData = {
   metrics?: Metrics;
   subperiods?: SubPeriod[];
   strategy?: {
+    top_n?: number;
+    portfolio_construction?: PortfolioConstruction;
     regime_filter?: RegimeFilter;
   };
 };
@@ -48,13 +60,12 @@ export default function BacktestSummary() {
 
   const m = data.subperiods?.find((p) => p.label === "3y")?.metrics ?? data.metrics;
   const regime = data.strategy?.regime_filter;
+  const pc = data.strategy?.portfolio_construction;
+  const topN = data.strategy?.top_n;
 
-  const defensiveWeights = regime?.risk_off_defensive_weights ?? {};
   const defensiveText =
-    Object.keys(defensiveWeights).length > 0
-      ? Object.entries(defensiveWeights)
-          .map(([ticker, weight]) => `${ticker} ${formatPct(weight)}`)
-          .join(" · ")
+    regime?.defensive_tickers && regime.defensive_tickers.length > 0
+      ? regime.defensive_tickers.join(" / ")
       : null;
 
   return (
@@ -63,17 +74,38 @@ export default function BacktestSummary() {
         <div>
           <h2 className="text-2xl font-semibold">Recommended Strategy (3Y)</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Regime-filtered production model with defensive sleeve
+            Alpha-weighted Top {topN ?? 15} selection with weekly 3-state regime filter
           </p>
         </div>
 
-        {regime && (
+        {(regime || pc) && (
           <div className="text-xs text-gray-500 text-right leading-5">
-            <div>SPY {regime.ma_window}DMA filter</div>
-            <div>
-              Risk-off stock exposure {formatPct(regime.risk_off_exposure)}
-            </div>
-            {defensiveText && <div>Defensive sleeve {defensiveText}</div>}
+            {regime && (
+              <>
+                <div>
+                  SPY {regime.ma_window}DMA + {regime.momentum_window}D momentum
+                </div>
+                <div>
+                  Exposure {formatPct(regime.risk_on_exposure)} / {formatPct(regime.mid_exposure)} / {formatPct(regime.risk_off_exposure)}
+                </div>
+                <div>
+                  Stock rebalance {regime.stock_rebalance} · Exposure rebalance {regime.exposure_rebalance}
+                </div>
+                {defensiveText && <div>Defensive asset {defensiveText}</div>}
+              </>
+            )}
+
+            {pc && (
+              <>
+                <div>Score alpha {(pc.score_alpha ?? 0).toFixed(1)}</div>
+                <div>
+                  Absolute momentum 63D &gt; {(pc.absolute_momentum_63d_min ?? 0).toFixed(0)}%
+                  {" · "}
+                  252D &gt; {(pc.absolute_momentum_252d_min ?? 0).toFixed(0)}%
+                </div>
+                <div>Sector cap {pc.sector_max_names ?? 3} names</div>
+              </>
+            )}
           </div>
         )}
       </div>
