@@ -5,6 +5,7 @@
     "top_n": 10,
     "transaction_cost": 0.0015,
     "period_years": 3,
+    "execution_lag_days": 1,
     "portfolio_construction": {
       "method": "score_x_inverse_vol",
       "score_alpha": 1.0,
@@ -22,26 +23,27 @@
     }
   },
   "metrics": {
-    "total_return": 3.263646094701617,
-    "cagr": 0.4813250798225761,
-    "volatility": 0.22708966467981248,
-    "sharpe": 2.1195375866234407,
-    "max_drawdown": -0.15862597224453523
+    "total_return": 2.051256294582108,
+    "cagr": 0.3529386268164032,
+    "volatility": 0.227043443339492,
+    "sharpe": 1.5544982124353333,
+    "max_drawdown": -0.15862597083762875
   },
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 0.8237853173413121,
-      "cagr": 0.17683468050689766,
-      "volatility": 0.1649291552511664,
-      "sharpe": 1.0721856923210493,
-      "max_drawdown": -0.18755245858548641
+      "total_return": 0.8263910172673288,
+      "cagr": 0.1772900434492417,
+      "volatility": 0.16492295981146474,
+      "sharpe": 1.0749870342608128,
+      "max_drawdown": -0.1875523263580976
     }
   },
   "notes": [
-    "Universe based on current S&P500 constituents (survivorship bias possible)",
-    "Look-ahead bias removed via historical slicing",
-    "Transaction cost applied per rebalance",
+    "Universe based on current constituents (survivorship bias possible)",
+    "Ranking uses historical slice through rebalance date close",
+    "Selected portfolio is applied with a 1-day execution lag",
+    "Transaction cost is applied when holdings change on execution day",
     "Regime filter uses SPY vs 200DMA to scale exposure",
     "Portfolio weights use score × inverse volatility weighting instead of equal weighting"
   ]
