@@ -14,17 +14,25 @@ type SubPeriod = {
   metrics: Metrics;
 };
 
+type RegimeFilter = {
+  ma_window?: number;
+  risk_on_exposure?: number;
+  risk_off_exposure?: number;
+  defensive_tickers?: string[];
+  risk_off_defensive_weights?: Record<string, number>;
+};
+
 type BacktestSummaryData = {
   metrics?: Metrics;
   subperiods?: SubPeriod[];
   strategy?: {
-    regime_filter?: {
-      ma_window?: number;
-      risk_on_exposure?: number;
-      risk_off_exposure?: number;
-    };
+    regime_filter?: RegimeFilter;
   };
 };
+
+function formatPct(v?: number) {
+  return `${((v ?? 0) * 100).toFixed(0)}%`;
+}
 
 export default function BacktestSummary() {
   const [data, setData] = useState<BacktestSummaryData | null>(null);
@@ -41,22 +49,31 @@ export default function BacktestSummary() {
   const m = data.subperiods?.find((p) => p.label === "3y")?.metrics ?? data.metrics;
   const regime = data.strategy?.regime_filter;
 
+  const defensiveWeights = regime?.risk_off_defensive_weights ?? {};
+  const defensiveText =
+    Object.keys(defensiveWeights).length > 0
+      ? Object.entries(defensiveWeights)
+          .map(([ticker, weight]) => `${ticker} ${formatPct(weight)}`)
+          .join(" · ")
+      : null;
+
   return (
     <div className="border rounded-xl p-6 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <h2 className="text-2xl font-semibold">Recommended Strategy (3Y)</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Regime-filtered production model
+            Regime-filtered production model with defensive sleeve
           </p>
         </div>
 
         {regime && (
-          <div className="text-xs text-gray-500 text-right">
+          <div className="text-xs text-gray-500 text-right leading-5">
             <div>SPY {regime.ma_window}DMA filter</div>
             <div>
-              Risk-off exposure {((regime.risk_off_exposure ?? 0) * 100).toFixed(0)}%
+              Risk-off stock exposure {formatPct(regime.risk_off_exposure)}
             </div>
+            {defensiveText && <div>Defensive sleeve {defensiveText}</div>}
           </div>
         )}
       </div>

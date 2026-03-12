@@ -20,64 +20,75 @@
       "benchmark": "SPY",
       "ma_window": 200,
       "risk_on_exposure": 1.0,
-      "risk_off_exposure": 0.5
+      "risk_off_exposure": 0.5,
+      "defensive_tickers": [
+        "TLT",
+        "GLD"
+      ],
+      "risk_off_defensive_weights": {
+        "TLT": 0.35,
+        "GLD": 0.15
+      },
+      "summary": "When SPY is below 200DMA, stock exposure is reduced and the remaining weight is allocated to defensive assets."
     }
   },
   "metrics": {
-    "total_return": 2.8229962470394336,
-    "cagr": 0.13380793736892294,
-    "volatility": 0.18983018017295764,
-    "sharpe": 0.7048823176957856,
-    "max_drawdown": -0.17383693986248838
+    "total_return": 1.6174526661726318,
+    "cagr": 0.0942900902129935,
+    "volatility": 0.19150775768938494,
+    "sharpe": 0.4923565047736962,
+    "max_drawdown": -0.28066374506223035
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.8146758076090996,
-        "cagr": 0.21973742615972935,
-        "volatility": 0.2034877197387646,
-        "sharpe": 1.0798559561325174,
-        "max_drawdown": -0.13649440009721336
+        "total_return": 0.7184846878571836,
+        "cagr": 0.19779332609429834,
+        "volatility": 0.2059392785265164,
+        "sharpe": 0.9604448821492342,
+        "max_drawdown": -0.13649440654833445
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.9398939673679931,
-        "cagr": 0.14170945721634443,
-        "volatility": 0.19556983101432462,
-        "sharpe": 0.7245977382164064,
-        "max_drawdown": -0.17383693986248838
+        "total_return": 0.5773281473867062,
+        "cagr": 0.0954294453636928,
+        "volatility": 0.2016019966764235,
+        "sharpe": 0.4733556558810256,
+        "max_drawdown": -0.28066374506223024
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 2.686747970790542,
-        "cagr": 0.13936885835630775,
-        "volatility": 0.1935416403484151,
-        "sharpe": 0.7200975361447537,
-        "max_drawdown": -0.17383693986248838
+        "total_return": 1.5241703992129718,
+        "cagr": 0.09701323440228138,
+        "volatility": 0.1953020311081947,
+        "sharpe": 0.4967343854633921,
+        "max_drawdown": -0.28066374506223024
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.9281280660830715,
-      "cagr": 0.1366919968547471,
-      "volatility": 0.17914474660138371,
-      "sharpe": 0.7630254274712361,
-      "max_drawdown": -0.3371725923864721
+      "total_return": 2.92812736983725,
+      "cagr": 0.13669197798758215,
+      "volatility": 0.17914474488206228,
+      "sharpe": 0.7630253294762936,
+      "max_drawdown": -0.33717264160164273
     }
   },
   "notes": [
     "Universe is reconstructed point-in-time using current S&P500 membership plus Wikipedia change events.",
     "Ranking uses historical slice through rebalance date close.",
     "Selected portfolio is applied with a 1-day execution lag.",
-    "Transaction cost is applied when holdings change on execution day.",
-    "Regime filter uses SPY vs 200DMA to scale exposure.",
+    "Regime signal is also applied with a 1-day lag using today's close for tomorrow's exposure.",
+    "Transaction cost is applied when total portfolio weights change on execution day.",
+    "Risk-off portfolio uses a defensive sleeve instead of cash.",
+    "Defensive sleeve version B = TLT 35% + GLD 15% when stock exposure is reduced to 50%.",
     "Portfolio weights use score × inverse volatility weighting instead of equal weighting.",
     "Historical membership reconstruction depends on the quality of parsed Wikipedia change events."
   ]
