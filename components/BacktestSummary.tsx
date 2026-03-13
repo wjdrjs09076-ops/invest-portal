@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 type Metrics = {
   total_return?: number;
@@ -56,16 +55,15 @@ type StrategyInfo = {
   regime_filter?: RegimeFilter;
 };
 
-type BenchmarkInfo = {
-  ticker?: string;
-  metrics?: Metrics;
-};
-
-type BacktestSummaryData = {
+type BacktestData = {
   strategy?: StrategyInfo;
   metrics?: Metrics;
   subperiods?: SubPeriod[];
-  benchmark?: BenchmarkInfo;
+  benchmark?: {
+    ticker?: string;
+    metrics?: Metrics;
+    subperiods?: SubPeriod[];
+  };
   notes?: string[];
 };
 
@@ -77,185 +75,306 @@ function formatNum(v?: number, digits = 2) {
   return (v ?? 0).toFixed(digits);
 }
 
-function formatText(value?: string | number | null) {
-  if (value === undefined || value === null || value === "") return "-";
-  return String(value);
+function getMetricsForPeriod(data: BacktestData | null, period: "3y" | "5y" | "10y"): Metrics | undefined {
+  if (!data) return undefined;
+  return data.subperiods?.find((p) => p.label === period)?.metrics ?? data.metrics;
 }
 
-export default function BacktestSummary() {
-  const [data, setData] = useState<BacktestSummaryData | null>(null);
+function getBenchmarkMetricsForPeriod(
+  data: BacktestData | null,
+  period: "3y" | "5y" | "10y"
+): Metrics | undefined {
+  if (!data?.benchmark) return undefined;
+  return data.benchmark.subperiods?.find((p) => p.label === period)?.metrics ?? data.benchmark.metrics;
+}
+
+function MetricCard({
+  title,
+  subtitle,
+  metrics,
+}: {
+  title: string;
+  subtitle: string;
+  metrics?: Metrics;
+}) {
+  return (
+    <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
+      <p className="mt-2 text-sm text-gray-500">{subtitle}</p>
+
+      <div className="mt-6 grid grid-cols-2 gap-6 md:grid-cols-4">
+        <div>
+          <div className="text-sm text-gray-500">CAGR</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">
+            {formatPct(metrics?.cagr, 1)}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-sm text-gray-500">Sharpe</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">
+            {formatNum(metrics?.sharpe, 2)}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-sm text-gray-500">Max Drawdown</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">
+            {formatPct(metrics?.max_drawdown, 1)}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-sm text-gray-500">Volatility</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">
+            {formatPct(metrics?.volatility, 1)}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function BacktestPage() {
+  const [period, setPeriod] = useState<"3y" | "5y" | "10y">("10y");
+  const [baseData, setBaseData] = useState<BacktestData | null>(null);
+  const [regimeData, setRegimeData] = useState<BacktestData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/data/backtest_regime_result.json")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {});
+    let alive = true;
+
+    async function load() {
+      try {
+        const [baseRes, regimeRes] = await Promise.allSettled([
+          fetch("/data/backtest_result.json").then((r) => {
+            if (!r.ok) throw new Error("base backtest missing");
+            return r.json();
+          }),
+          fetch("/data/backtest_regime_result.json").then((r) => {
+            if (!r.ok) throw new Error("regime backtest missing");
+            return r.json();
+          }),
+        ]);
+
+        if (!alive) return;
+
+        if (baseRes.status === "fulfilled") {
+          setBaseData(baseRes.value);
+        }
+
+        if (regimeRes.status === "fulfilled") {
+          setRegimeData(regimeRes.value);
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  if (!data?.metrics) return null;
+  const baseMetrics = useMemo(() => getMetricsForPeriod(baseData, period), [baseData, period]);
+  const regimeMetrics = useMemo(() => getMetricsForPeriod(regimeData, period), [regimeData, period]);
+  const benchmarkMetrics = useMemo(
+    () => getBenchmarkMetricsForPeriod(regimeData, period),
+    [regimeData, period]
+  );
 
-  const selectedPeriod =
-    data.subperiods?.find((p) => p.label === "3y") ??
-    data.subperiods?.[0] ??
-    null;
-
-  const m = selectedPeriod?.metrics ?? data.metrics;
-  const periodLabel = selectedPeriod?.label?.toUpperCase() ?? "FULL";
-
-  const strategy = data.strategy;
-  const regime = strategy?.regime_filter;
-  const pc = strategy?.portfolio_construction;
-  const benchmark = data.benchmark;
-
-  const topN = strategy?.top_n ?? 15;
-  const benchmarkTicker = benchmark?.ticker ?? regime?.benchmark ?? "SPY";
-
+  const regime = regimeData?.strategy?.regime_filter;
+  const benchmarkTicker = regimeData?.benchmark?.ticker ?? regime?.benchmark ?? "SPY";
   const defensiveText =
     regime?.defensive_tickers && regime.defensive_tickers.length > 0
       ? regime.defensive_tickers.join(" / ")
       : "-";
 
-  const notesPreview = data.notes?.slice(0, 3) ?? [];
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-7xl px-6 py-10">
+        <div className="text-sm text-gray-500">Loading backtest...</div>
+      </main>
+    );
+  }
+
+  if (!regimeData) {
+    return (
+      <main className="mx-auto max-w-7xl px-6 py-10">
+        <div className="text-sm text-red-500">
+          backtest_regime_result.json 을 불러오지 못했습니다.
+        </div>
+      </main>
+    );
+  }
+
+  const periodTitle = period.toUpperCase();
 
   return (
-    <div className="border rounded-xl p-6 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-6 mb-5">
-        <div>
-          <h2 className="text-2xl font-semibold">
-            Recommended Strategy ({periodLabel})
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {strategy?.selection ?? "TOP"} selection · Top {topN} ·{" "}
-            {formatText(strategy?.rebalance)} stock rebalance ·{" "}
-            {formatText(regime?.exposure_rebalance)} exposure rebalance
-          </p>
-        </div>
+    <main className="mx-auto max-w-7xl px-6 py-10">
+      <h1 className="text-5xl font-bold tracking-tight text-gray-900">
+        Backtest Comparison
+      </h1>
 
-        <div className="text-xs text-gray-500 text-right leading-5 max-w-[420px]">
+      <p className="mt-4 text-2xl text-gray-600">
+        Base strategy vs regime-filtered strategy · {benchmarkTicker}{" "}
+        {regime?.ma_window ?? 200}DMA · Risk-off exposure{" "}
+        {formatPct(regime?.risk_off_exposure, 0)}
+      </p>
+
+      <div className="mt-8 flex gap-3">
+        {(["3y", "5y", "10y"] as const).map((p) => {
+          const active = period === p;
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriod(p)}
+              className={`rounded-2xl border px-6 py-4 text-3xl font-semibold transition ${
+                active
+                  ? "border-black bg-black text-white"
+                  : "border-gray-300 bg-white text-black hover:bg-gray-50"
+              }`}
+            >
+              {p.toUpperCase()}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-10 space-y-6">
+        {baseData && (
+          <MetricCard
+            title={`Base Strategy (${periodTitle})`}
+            subtitle="Momentum + sector strength + risk filter"
+            metrics={baseMetrics}
+          />
+        )}
+
+        <MetricCard
+          title={`Regime-Filtered Strategy (${periodTitle})`}
+          subtitle={`Buffered ${benchmarkTicker} ${regime?.ma_window ?? 200}DMA exposure scaling`}
+          metrics={regimeMetrics}
+        />
+
+        <MetricCard
+          title={`Benchmark (${benchmarkTicker})`}
+          subtitle={`${periodTitle} benchmark reference`}
+          metrics={benchmarkMetrics}
+        />
+      </div>
+
+      <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">Strategy Details</h2>
+
+        <div className="mt-4 grid gap-6 md:grid-cols-2">
           <div>
-            Universe:{" "}
-            {strategy?.universe_method
-              ? strategy.universe_method.replaceAll("_", " ")
-              : "-"}
-          </div>
-          <div>
-            Backtest: {formatText(strategy?.period_years)}Y · Execution lag{" "}
-            {formatText(strategy?.execution_lag_days)}D · Cost{" "}
-            {formatPct(strategy?.transaction_cost, 2)}
-          </div>
-          {regime?.summary && <div>{regime.summary}</div>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 text-sm mb-5">
-        <div>
-          <div className="text-gray-500">CAGR</div>
-          <div className="font-semibold text-2xl">
-            {formatPct(m.cagr, 1)}
-          </div>
-        </div>
-
-        <div>
-          <div className="text-gray-500">Sharpe</div>
-          <div className="font-semibold text-2xl">
-            {formatNum(m.sharpe, 2)}
-          </div>
-        </div>
-
-        <div>
-          <div className="text-gray-500">Max Drawdown</div>
-          <div className="font-semibold text-2xl">
-            {formatPct(m.max_drawdown, 1)}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4 mb-5">
-        <div className="rounded-lg border p-4">
-          <div className="text-sm font-semibold mb-2">Regime Filter</div>
-          <div className="space-y-1 text-sm text-gray-600">
-            <div>
-              Benchmark {formatText(regime?.benchmark ?? benchmarkTicker)}
-            </div>
-            <div>
-              {formatText(regime?.ma_window)}DMA +{" "}
-              {formatText(regime?.momentum_window)}D momentum
-            </div>
-            <div>
-              Exposure {formatPct(regime?.risk_on_exposure)} /{" "}
-              {formatPct(regime?.mid_exposure)} /{" "}
-              {formatPct(regime?.risk_off_exposure)}
-            </div>
-            <div>
-              Buffer {formatPct(regime?.buffer, 2)} · Confirm{" "}
-              {formatText(regime?.confirm_days)}D
-            </div>
-            <div>
-              Stock rebalance {formatText(regime?.stock_rebalance)} · Exposure{" "}
-              {formatText(regime?.exposure_rebalance)}
-            </div>
-            <div>Defensive asset {defensiveText}</div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border p-4">
-          <div className="text-sm font-semibold mb-2">Portfolio Construction</div>
-          <div className="space-y-1 text-sm text-gray-600">
-            <div>Method {formatText(pc?.method)}</div>
-            <div>Score alpha {formatNum(pc?.score_alpha, 1)}</div>
-            <div>
-              Weight min {formatPct(pc?.min_weight, 1)} · max{" "}
-              {formatPct(pc?.max_weight, 1)}
-            </div>
-            <div>Vol floor {formatNum(pc?.vol_floor, 3)}</div>
-            <div>
-              Absolute momentum 63D &gt;{" "}
-              {formatPct(pc?.absolute_momentum_63d_min, 1)} · 252D &gt;{" "}
-              {formatPct(pc?.absolute_momentum_252d_min, 1)}
-            </div>
-            <div>Sector cap {formatText(pc?.sector_max_names)} names</div>
-          </div>
-        </div>
-      </div>
-
-      {(benchmark?.metrics || notesPreview.length > 0) && (
-        <div className="grid md:grid-cols-2 gap-4 mb-5">
-          <div className="rounded-lg border p-4">
-            <div className="text-sm font-semibold mb-2">
-              Benchmark ({benchmarkTicker})
-            </div>
-            <div className="space-y-1 text-sm text-gray-600">
-              <div>CAGR {formatPct(benchmark?.metrics?.cagr, 1)}</div>
-              <div>Sharpe {formatNum(benchmark?.metrics?.sharpe, 2)}</div>
+            <div className="text-sm font-medium text-gray-900">Regime Filter</div>
+            <div className="mt-2 space-y-1 text-sm text-gray-600">
               <div>
-                Max Drawdown {formatPct(benchmark?.metrics?.max_drawdown, 1)}
+                Benchmark: {benchmarkTicker}
+              </div>
+              <div>
+                MA window: {regime?.ma_window ?? "-"}D
+              </div>
+              <div>
+                Momentum window: {regime?.momentum_window ?? "-"}D
+              </div>
+              <div>
+                Buffer: {formatPct(regime?.buffer, 2)}
+              </div>
+              <div>
+                Confirm days: {regime?.confirm_days ?? "-"}
+              </div>
+              <div>
+                Stock rebalance: {regime?.stock_rebalance ?? "-"}
+              </div>
+              <div>
+                Exposure rebalance: {regime?.exposure_rebalance ?? "-"}
+              </div>
+              <div>
+                Exposure: {formatPct(regime?.risk_on_exposure)} /{" "}
+                {formatPct(regime?.mid_exposure)} /{" "}
+                {formatPct(regime?.risk_off_exposure)}
+              </div>
+              <div>
+                Defensive asset: {defensiveText}
               </div>
             </div>
           </div>
 
-          <div className="rounded-lg border p-4">
-            <div className="text-sm font-semibold mb-2">Backtest Notes</div>
-            <div className="space-y-1 text-sm text-gray-600">
-              {notesPreview.length > 0 ? (
-                notesPreview.map((note, idx) => <div key={idx}>• {note}</div>)
-              ) : (
-                <div>-</div>
-              )}
+          <div>
+            <div className="text-sm font-medium text-gray-900">Portfolio Construction</div>
+            <div className="mt-2 space-y-1 text-sm text-gray-600">
+              <div>
+                Top N: {regimeData.strategy?.top_n ?? "-"}
+              </div>
+              <div>
+                Selection: {regimeData.strategy?.selection ?? "-"}
+              </div>
+              <div>
+                Rebalance: {regimeData.strategy?.rebalance ?? "-"}
+              </div>
+              <div>
+                Transaction cost: {formatPct(regimeData.strategy?.transaction_cost, 2)}
+              </div>
+              <div>
+                Test period: {regimeData.strategy?.period_years ?? "-"}Y
+              </div>
+              <div>
+                Execution lag: {regimeData.strategy?.execution_lag_days ?? "-"}D
+              </div>
+              <div>
+                Universe: {regimeData.strategy?.universe_method ?? "-"}
+              </div>
+              <div>
+                Absolute momentum 63D &gt;{" "}
+                {formatPct(
+                  regimeData.strategy?.portfolio_construction?.absolute_momentum_63d_min,
+                  1
+                )}
+              </div>
+              <div>
+                Absolute momentum 252D &gt;{" "}
+                {formatPct(
+                  regimeData.strategy?.portfolio_construction?.absolute_momentum_252d_min,
+                  1
+                )}
+              </div>
+              <div>
+                Sector cap:{" "}
+                {regimeData.strategy?.portfolio_construction?.sector_max_names ?? "-"} names
+              </div>
+              <div>
+                Score alpha:{" "}
+                {formatNum(
+                  regimeData.strategy?.portfolio_construction?.score_alpha,
+                  1
+                )}
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      {pc?.formula && (
-        <div className="mb-5 rounded-lg bg-gray-50 border px-4 py-3">
-          <div className="text-xs text-gray-500 mb-1">Weight Formula</div>
-          <div className="text-sm text-gray-700 break-words">{pc.formula}</div>
-        </div>
-      )}
+        {regime?.summary && (
+          <div className="mt-4 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
+            {regime.summary}
+          </div>
+        )}
 
-      <Link href="/backtest" className="text-sm text-blue-600 hover:underline">
-        Compare 3Y / 5Y / 10Y →
-      </Link>
-    </div>
+        {regimeData.notes && regimeData.notes.length > 0 && (
+          <div className="mt-5">
+            <div className="text-sm font-medium text-gray-900">Notes</div>
+            <div className="mt-2 space-y-1 text-sm text-gray-600">
+              {regimeData.notes.map((note, idx) => (
+                <div key={idx}>• {note}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
