@@ -15,10 +15,10 @@ import {
 } from "recharts";
 
 type Metrics = {
-  cagr: number;
-  sharpe: number;
-  max_drawdown: number;
-  volatility: number;
+  cagr?: number;
+  sharpe?: number;
+  max_drawdown?: number;
+  volatility?: number;
   total_return?: number;
 };
 
@@ -27,34 +27,56 @@ type SubPeriod = {
   metrics: Metrics;
 };
 
+type PortfolioConstruction = {
+  method?: string;
+  score_alpha?: number;
+  min_weight?: number;
+  max_weight?: number;
+  vol_fallback?: number;
+  vol_floor?: number;
+  absolute_momentum_63d_min?: number;
+  absolute_momentum_252d_min?: number;
+  sector_max_names?: number;
+  formula?: string;
+};
+
+type RegimeFilter = {
+  benchmark?: string;
+  ma_window?: number;
+  momentum_window?: number;
+  buffer?: number;
+  confirm_days?: number;
+  stock_rebalance?: string;
+  exposure_rebalance?: string;
+  risk_on_exposure?: number;
+  mid_exposure?: number;
+  risk_off_exposure?: number;
+  defensive_tickers?: string[];
+  summary?: string;
+};
+
+type StrategyInfo = {
+  rebalance?: string;
+  selection?: string;
+  top_n?: number;
+  transaction_cost?: number;
+  period_years?: number;
+  execution_lag_days?: number;
+  universe_method?: string;
+  portfolio_construction?: PortfolioConstruction;
+  regime_filter?: RegimeFilter;
+};
+
 type BacktestSummary = {
-  metrics: Metrics;
+  metrics?: Metrics;
   subperiods?: SubPeriod[];
-  benchmark: {
-    ticker: string;
-    metrics: Metrics;
+  benchmark?: {
+    ticker?: string;
+    metrics?: Metrics;
     subperiods?: SubPeriod[];
   };
-  strategy?: {
-    top_n?: number;
-    portfolio_construction?: {
-      score_alpha?: number;
-      absolute_momentum_63d_min?: number;
-      absolute_momentum_252d_min?: number;
-      sector_max_names?: number;
-    };
-    regime_filter?: {
-      benchmark?: string;
-      ma_window?: number;
-      momentum_window?: number;
-      stock_rebalance?: string;
-      exposure_rebalance?: string;
-      risk_on_exposure?: number;
-      mid_exposure?: number;
-      risk_off_exposure?: number;
-      defensive_tickers?: string[];
-    };
-  };
+  strategy?: StrategyInfo;
+  notes?: string[];
 };
 
 type BaseCurvePoint = {
@@ -67,7 +89,9 @@ type RegimeCurvePoint = {
   date: string;
   strategy: number;
   benchmark: number;
-  exposure?: number;
+  stock_exposure?: number;
+  defensive_exposure?: number;
+  regime_bucket?: string;
 };
 
 type MergedCurvePoint = {
@@ -90,19 +114,26 @@ type ScoreCorrelation = {
   data: ScoreCorrelationRow[];
 };
 
+function formatPct(v?: number, digits = 1) {
+  return `${((v ?? 0) * 100).toFixed(digits)}%`;
+}
+
+function formatNum(v?: number, digits = 2) {
+  return (v ?? 0).toFixed(digits);
+}
+
+function formatText(v?: string | number | null) {
+  if (v === undefined || v === null || v === "") return "-";
+  return String(v);
+}
+
 function MetricCard({
   title,
-  cagr,
-  sharpe,
-  mdd,
-  vol,
+  metrics,
   subtitle,
 }: {
   title: string;
-  cagr: number;
-  sharpe: number;
-  mdd: number;
-  vol?: number;
+  metrics?: Metrics;
   subtitle?: string;
 }) {
   return (
@@ -115,6 +146,7 @@ function MetricCard({
       }}
     >
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+
       {subtitle ? (
         <div style={{ color: "#666", fontSize: 13, marginBottom: 12 }}>{subtitle}</div>
       ) : null}
@@ -122,20 +154,29 @@ function MetricCard({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         <div>
           <div style={{ color: "#666", fontSize: 13 }}>CAGR</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{(cagr * 100).toFixed(1)}%</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>
+            {formatPct(metrics?.cagr, 1)}
+          </div>
         </div>
+
         <div>
           <div style={{ color: "#666", fontSize: 13 }}>Sharpe</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{sharpe.toFixed(2)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>
+            {formatNum(metrics?.sharpe, 2)}
+          </div>
         </div>
+
         <div>
           <div style={{ color: "#666", fontSize: 13 }}>Max Drawdown</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{(mdd * 100).toFixed(1)}%</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>
+            {formatPct(metrics?.max_drawdown, 1)}
+          </div>
         </div>
+
         <div>
           <div style={{ color: "#666", fontSize: 13 }}>Volatility</div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>
-            {vol != null ? `${(vol * 100).toFixed(1)}%` : "-"}
+            {metrics?.volatility != null ? formatPct(metrics.volatility, 1) : "-"}
           </div>
         </div>
       </div>
@@ -143,23 +184,25 @@ function MetricCard({
   );
 }
 
-function getMetricsByPeriod(summary: BacktestSummary, period: "3y" | "5y" | "10y"): Metrics {
-  if (period === "10y") return summary.metrics;
-  const found = summary.subperiods?.find((p) => p.label === period);
-  return found?.metrics ?? summary.metrics;
+function getMetricsByPeriod(
+  summary: BacktestSummary,
+  period: "3y" | "5y" | "10y"
+): Metrics {
+  const fromSubperiod = summary.subperiods?.find((p) => p.label === period)?.metrics;
+  return fromSubperiod ?? summary.metrics ?? {};
 }
 
 function getBenchmarkMetricsByPeriod(
   summary: BacktestSummary,
   period: "3y" | "5y" | "10y"
 ): Metrics {
-  if (period === "10y") return summary.benchmark.metrics;
-  const found = summary.benchmark.subperiods?.find((p) => p.label === period);
-  return found?.metrics ?? summary.benchmark.metrics;
+  const fromSubperiod = summary.benchmark?.subperiods?.find((p) => p.label === period)?.metrics;
+  return fromSubperiod ?? summary.benchmark?.metrics ?? {};
 }
 
 function getPeriodStartDate(period: "3y" | "5y" | "10y"): Date | null {
   if (period === "10y") return null;
+
   const years = period === "5y" ? 5 : 3;
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - years);
@@ -175,9 +218,12 @@ function rebaseCurve(points: MergedCurvePoint[]): MergedCurvePoint[] {
 
   return points.map((p) => ({
     date: p.date,
-    spy: p.spy != null && firstSpy != null && firstSpy !== 0 ? p.spy / firstSpy : undefined,
+    spy:
+      p.spy != null && firstSpy != null && firstSpy !== 0 ? p.spy / firstSpy : undefined,
     base:
-      p.base != null && firstBase != null && firstBase !== 0 ? p.base / firstBase : undefined,
+      p.base != null && firstBase != null && firstBase !== 0
+        ? p.base / firstBase
+        : undefined,
     regime:
       p.regime != null && firstRegime != null && firstRegime !== 0
         ? p.regime / firstRegime
@@ -260,22 +306,39 @@ export default function BacktestPage() {
       avg_return_pct: x.avg_return * 100,
     })) ?? [];
 
-  if (!baseSummary || !regimeSummary) {
+  if (!regimeSummary) {
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  const base = getMetricsByPeriod(baseSummary, period);
+  const base = baseSummary ? getMetricsByPeriod(baseSummary, period) : undefined;
   const regime = getMetricsByPeriod(regimeSummary, period);
   const spy = getBenchmarkMetricsByPeriod(regimeSummary, period);
-  const regimeInfo = regimeSummary.strategy?.regime_filter;
+
+  const strategy = regimeSummary.strategy;
+  const regimeInfo = strategy?.regime_filter;
+  const pc = strategy?.portfolio_construction;
+  const benchmarkTicker = regimeSummary.benchmark?.ticker ?? regimeInfo?.benchmark ?? "SPY";
+
+  const defensiveText =
+    regimeInfo?.defensive_tickers && regimeInfo.defensive_tickers.length > 0
+      ? regimeInfo.defensive_tickers.join(" / ")
+      : "-";
+
+  const regimeSubtitle = regimeInfo
+    ? `${benchmarkTicker} ${regimeInfo.ma_window ?? 200}DMA + ${regimeInfo.momentum_window ?? 63}D momentum · buffered 3-state exposure`
+    : "Regime filtered strategy";
 
   return (
     <div style={{ padding: 40, maxWidth: 1240, margin: "0 auto" }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Backtest Comparison</h1>
+
       <div style={{ color: "#555", marginBottom: 16 }}>
         Base strategy vs regime-filtered strategy
         {regimeInfo
-          ? ` · ${regimeInfo.benchmark ?? "SPY"} ${regimeInfo.ma_window ?? 200}DMA · Risk-off exposure ${((regimeInfo.risk_off_exposure ?? 0) * 100).toFixed(0)}%`
+          ? ` · ${benchmarkTicker} ${regimeInfo.ma_window ?? 200}DMA · Risk-off exposure ${formatPct(
+              regimeInfo.risk_off_exposure,
+              0
+            )}`
           : ""}
       </div>
 
@@ -300,31 +363,24 @@ export default function BacktestPage() {
       </div>
 
       <div style={{ display: "grid", gap: 16, marginBottom: 24 }}>
-        <MetricCard
-          title={`Base Strategy (${period.toUpperCase()})`}
-          subtitle="Momentum + sector strength + risk filter"
-          cagr={base.cagr}
-          sharpe={base.sharpe}
-          mdd={base.max_drawdown}
-          vol={base.volatility}
-        />
+        {baseSummary && (
+          <MetricCard
+            title={`Base Strategy (${period.toUpperCase()})`}
+            subtitle="Momentum + sector strength + risk filter"
+            metrics={base}
+          />
+        )}
 
         <MetricCard
           title={`Regime-Filtered Strategy (${period.toUpperCase()})`}
-          subtitle="Base strategy with SPY 200DMA exposure scaling"
-          cagr={regime.cagr}
-          sharpe={regime.sharpe}
-          mdd={regime.max_drawdown}
-          vol={regime.volatility}
+          subtitle={regimeSubtitle}
+          metrics={regime}
         />
 
         <MetricCard
-          title={`Benchmark (${regimeSummary.benchmark.ticker})`}
+          title={`Benchmark (${benchmarkTicker})`}
           subtitle={`${period.toUpperCase()} benchmark reference`}
-          cagr={spy.cagr}
-          sharpe={spy.sharpe}
-          mdd={spy.max_drawdown}
-          vol={spy.volatility}
+          metrics={spy}
         />
       </div>
 
@@ -378,6 +434,121 @@ export default function BacktestPage() {
             />
           </LineChart>
         </ResponsiveContainer>
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #ddd",
+          borderRadius: 16,
+          padding: 20,
+          background: "#fff",
+          marginBottom: 28,
+        }}
+      >
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+          Strategy Details
+        </h2>
+
+        <div style={{ color: "#666", marginBottom: 16 }}>
+          Current regime/backtest configuration loaded from{" "}
+          <strong>backtest_regime_result.json</strong>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 20,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Regime Filter</div>
+            <div style={{ color: "#555", fontSize: 14, lineHeight: 1.8 }}>
+              <div>Benchmark: {formatText(benchmarkTicker)}</div>
+              <div>MA window: {formatText(regimeInfo?.ma_window)}D</div>
+              <div>Momentum window: {formatText(regimeInfo?.momentum_window)}D</div>
+              <div>Buffer: {formatPct(regimeInfo?.buffer, 2)}</div>
+              <div>Confirm days: {formatText(regimeInfo?.confirm_days)}D</div>
+              <div>Stock rebalance: {formatText(regimeInfo?.stock_rebalance)}</div>
+              <div>Exposure rebalance: {formatText(regimeInfo?.exposure_rebalance)}</div>
+              <div>
+                Exposure: {formatPct(regimeInfo?.risk_on_exposure)} /{" "}
+                {formatPct(regimeInfo?.mid_exposure)} /{" "}
+                {formatPct(regimeInfo?.risk_off_exposure)}
+              </div>
+              <div>Defensive asset: {defensiveText}</div>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>
+              Portfolio Construction
+            </div>
+            <div style={{ color: "#555", fontSize: 14, lineHeight: 1.8 }}>
+              <div>Selection: {formatText(strategy?.selection)}</div>
+              <div>Top N: {formatText(strategy?.top_n)}</div>
+              <div>Rebalance: {formatText(strategy?.rebalance)}</div>
+              <div>Transaction cost: {formatPct(strategy?.transaction_cost, 2)}</div>
+              <div>Backtest period: {formatText(strategy?.period_years)}Y</div>
+              <div>Execution lag: {formatText(strategy?.execution_lag_days)}D</div>
+              <div>Universe: {formatText(strategy?.universe_method)}</div>
+              <div>Method: {formatText(pc?.method)}</div>
+              <div>Score alpha: {formatNum(pc?.score_alpha, 1)}</div>
+              <div>
+                Weight min / max: {formatPct(pc?.min_weight)} / {formatPct(pc?.max_weight)}
+              </div>
+              <div>Vol floor: {pc?.vol_floor != null ? pc.vol_floor.toFixed(3) : "-"}</div>
+              <div>
+                Absolute momentum 63D &gt; {formatPct(pc?.absolute_momentum_63d_min, 1)}
+              </div>
+              <div>
+                Absolute momentum 252D &gt; {formatPct(pc?.absolute_momentum_252d_min, 1)}
+              </div>
+              <div>Sector cap: {formatText(pc?.sector_max_names)} names</div>
+            </div>
+          </div>
+        </div>
+
+        {regimeInfo?.summary ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 14,
+              borderRadius: 12,
+              background: "#f6f6f6",
+              color: "#444",
+              fontSize: 14,
+            }}
+          >
+            {regimeInfo.summary}
+          </div>
+        ) : null}
+
+        {pc?.formula ? (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 14,
+              borderRadius: 12,
+              background: "#fafafa",
+              color: "#444",
+              fontSize: 14,
+            }}
+          >
+            <strong>Weight formula:</strong> {pc.formula}
+          </div>
+        ) : null}
+
+        {regimeSummary.notes && regimeSummary.notes.length > 0 ? (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Notes</div>
+            <div style={{ color: "#555", fontSize: 14, lineHeight: 1.8 }}>
+              {regimeSummary.notes.map((note, idx) => (
+                <div key={idx}>• {note}</div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div
