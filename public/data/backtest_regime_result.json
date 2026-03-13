@@ -6,16 +6,16 @@
     "transaction_cost": 0.0015,
     "period_years": 10,
     "execution_lag_days": 1,
-    "universe_method": "point_in_time_sp500_membership_from_wikipedia_events",
+    "universe_method": "point_in_time_sp1500_membership_from_wikipedia_events",
     "portfolio_construction": {
       "method": "score_x_inverse_vol",
       "score_alpha": 1.8,
-      "min_weight": 0.1,
-      "max_weight": 0.35,
+      "min_weight": 0.05,
+      "max_weight": 0.2,
       "vol_fallback": 0.35,
       "vol_floor": 0.18,
-      "absolute_momentum_63d_min": -5.0,
-      "absolute_momentum_252d_min": -10.0,
+      "absolute_momentum_63d_min": 0,
+      "absolute_momentum_252d_min": 0,
       "sector_max_names": 3,
       "formula": "weight_i ∝ (score_i ^ alpha) / max(vol20_i, vol_floor)"
     },
@@ -23,6 +23,8 @@
       "benchmark": "SPY",
       "ma_window": 200,
       "momentum_window": 63,
+      "buffer": 0.005,
+      "confirm_days": 2,
       "stock_rebalance": "monthly",
       "exposure_rebalance": "weekly",
       "risk_on_exposure": 1.0,
@@ -31,67 +33,70 @@
       "defensive_tickers": [
         "SHY"
       ],
-      "summary": "Exposure is updated weekly using a simple 3-state regime model: 100% when SPY is above 200DMA and 63D momentum is positive, 80% when only one condition is positive, and 65% otherwise. Defensive sleeve is SHY."
+      "summary": "Exposure is updated on a weekly basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is SHY."
     }
   },
   "metrics": {
-    "total_return": 2.0983331291463574,
-    "cagr": 0.10990328974787755,
-    "volatility": 0.17146413802299365,
-    "sharpe": 0.6409695404244783,
-    "max_drawdown": -0.2662208495371471
+    "total_return": 3.5098207960467898,
+    "cagr": 0.14893534195591318,
+    "volatility": 0.22609100737996965,
+    "sharpe": 0.6587406712094998,
+    "max_drawdown": -0.4496952018242012
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.7990700813821914,
-        "cagr": 0.21623088329437867,
-        "volatility": 0.1794320790266175,
-        "sharpe": 1.2050848681427935,
-        "max_drawdown": -0.13904904020068465
+        "total_return": 0.8745821446297497,
+        "cagr": 0.233014428585546,
+        "volatility": 0.23966220696813134,
+        "sharpe": 0.9722618828112964,
+        "max_drawdown": -0.22275519478461314
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.8321735629316644,
-        "cagr": 0.1287384580508668,
-        "volatility": 0.17437143804933258,
-        "sharpe": 0.7383001453164856,
-        "max_drawdown": -0.16143574667212612
+        "total_return": 1.1019816874289674,
+        "cagr": 0.16018109822032844,
+        "volatility": 0.2388822857030065,
+        "sharpe": 0.6705440621054491,
+        "max_drawdown": -0.22275519478461325
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 2.060248971243384,
-        "cagr": 0.11834467980524788,
-        "volatility": 0.17350072756817844,
-        "sharpe": 0.6820990405284809,
-        "max_drawdown": -0.2662208495371472
+        "total_return": 4.04227963201403,
+        "cagr": 0.1756084328601435,
+        "volatility": 0.22980339004867797,
+        "sharpe": 0.7641681561918879,
+        "max_drawdown": -0.4496952018242013
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.8506956782065425,
-      "cagr": 0.13237544132296208,
-      "volatility": 0.1782944773068536,
-      "sharpe": 0.7424539633672299,
-      "max_drawdown": -0.3371725271441378
+      "total_return": 2.8216190259559735,
+      "cagr": 0.13153314422796547,
+      "volatility": 0.1782992472537229,
+      "sharpe": 0.7377100366598381,
+      "max_drawdown": -0.33717269081681334
     }
   },
   "notes": [
-    "Universe is reconstructed point-in-time using current S&P500 membership plus Wikipedia change events.",
+    "Universe is reconstructed point-in-time using current S&P1500 membership plus Wikipedia change events.",
+    "Current universe combines S&P500, S&P400, and S&P600.",
     "Ranking uses historical slice through rebalance date close.",
     "Selected stock portfolio is applied with a 1-day execution lag.",
     "Exposure signal is applied with a 1-day execution lag.",
     "Transaction cost is applied when total portfolio weights change on execution day.",
     "Stock selection is monthly, while exposure adjustment is weekly.",
-    "Absolute momentum filter is relaxed: 63D return > -5% and 252D return > -10%.",
+    "Absolute momentum filter requires 63D return > 0 and 252D return > 0.",
     "Sector cap limits selected names to reduce concentration risk.",
-    "Risk-off sleeve uses SHY only."
+    "Regime filter uses a 0.50% buffer around the moving average and 2-day confirmation to reduce whipsaw.",
+    "Risk-off sleeve uses SHY only.",
+    "Quality is not yet applied in backtest to avoid look-ahead bias."
   ]
 }
