@@ -27,9 +27,54 @@ type SubPeriod = {
   metrics: Metrics;
 };
 
+type PortfolioConstruction = {
+  method?: string;
+  score_alpha?: number;
+  min_weight?: number;
+  max_weight?: number;
+  vol_fallback?: number;
+  vol_floor?: number;
+  absolute_momentum_63d_min?: number;
+  absolute_momentum_252d_min?: number;
+  sector_max_names?: number;
+  formula?: string;
+};
+
+type RegimeFilter = {
+  benchmark?: string;
+  ma_window?: number;
+  momentum_window?: number;
+  buffer?: number;
+  confirm_days?: number;
+  stock_rebalance?: string;
+  exposure_rebalance?: string;
+  risk_on_exposure?: number;
+  mid_exposure?: number;
+  risk_off_exposure?: number;
+  defensive_tickers?: string[];
+  summary?: string;
+};
+
 type BacktestJson = {
   metrics?: Metrics;
   subperiods?: SubPeriod[];
+  benchmark?: {
+    ticker?: string;
+    metrics?: Metrics;
+    subperiods?: SubPeriod[];
+  };
+  strategy?: {
+    rebalance?: string;
+    selection?: string;
+    top_n?: number;
+    transaction_cost?: number;
+    period_years?: number;
+    execution_lag_days?: number;
+    universe_method?: string;
+    portfolio_construction?: PortfolioConstruction;
+    regime_filter?: RegimeFilter;
+  };
+  notes?: string[];
 };
 
 type ScoreCorrelationRow = {
@@ -41,6 +86,7 @@ type ScoreCorrelationRow = {
 };
 
 type ScoreCorrelationJson = {
+  forward_days?: number;
   data?: ScoreCorrelationRow[];
 };
 
@@ -66,18 +112,6 @@ type SectorExposureJson = {
   avg_sector_exposure?: SectorExposureRow[];
 };
 
-type RegimeJson = {
-  metrics?: Metrics;
-  subperiods?: SubPeriod[];
-  strategy?: {
-    regime_filter?: {
-      ma_window?: number;
-      risk_on_exposure?: number;
-      risk_off_exposure?: number;
-    };
-  };
-};
-
 type FactorJson = {
   average_factor_scores?: {
     momentum_21d?: number;
@@ -87,15 +121,27 @@ type FactorJson = {
   };
 };
 
+function formatPct(v?: number, digits = 1) {
+  return `${((v ?? 0) * 100).toFixed(digits)}%`;
+}
+
+function formatNum(v?: number, digits = 2) {
+  return (v ?? 0).toFixed(digits);
+}
+
+function formatText(v?: string | number | null) {
+  if (v === undefined || v === null || v === "") return "-";
+  return String(v);
+}
+
 function getMetricsByPeriod<T extends { metrics?: Metrics; subperiods?: SubPeriod[] }>(
   summary: T | null,
   period: "3y" | "5y" | "10y"
 ): Metrics | null {
-  if (!summary?.metrics) return null;
-  if (period === "10y") return summary.metrics;
+  if (!summary) return null;
 
-  const found = summary.subperiods?.find((p) => p.label === period);
-  return found?.metrics ?? summary.metrics;
+  const fromSubperiod = summary.subperiods?.find((p) => p.label === period)?.metrics;
+  return fromSubperiod ?? summary.metrics ?? null;
 }
 
 export default function StrategyPage() {
@@ -105,7 +151,7 @@ export default function StrategyPage() {
   const [corr, setCorr] = useState<ScoreCorrelationJson | null>(null);
   const [topn, setTopn] = useState<TopNJson | null>(null);
   const [sector, setSector] = useState<SectorExposureJson | null>(null);
-  const [regime, setRegime] = useState<RegimeJson | null>(null);
+  const [regime, setRegime] = useState<BacktestJson | null>(null);
   const [factor, setFactor] = useState<FactorJson | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -168,12 +214,33 @@ export default function StrategyPage() {
 
   const factorChartData = factor?.average_factor_scores
     ? [
-        { factor: "Momentum 21D", value: (factor.average_factor_scores.momentum_21d ?? 0) * 100 },
-        { factor: "Momentum 63D", value: (factor.average_factor_scores.momentum_63d ?? 0) * 100 },
-        { factor: "Sector", value: (factor.average_factor_scores.sector ?? 0) * 100 },
-        { factor: "Risk", value: (factor.average_factor_scores.risk ?? 0) * 100 },
+        {
+          factor: "Momentum 21D",
+          value: (factor.average_factor_scores.momentum_21d ?? 0) * 100,
+        },
+        {
+          factor: "Momentum 63D",
+          value: (factor.average_factor_scores.momentum_63d ?? 0) * 100,
+        },
+        {
+          factor: "Sector",
+          value: (factor.average_factor_scores.sector ?? 0) * 100,
+        },
+        {
+          factor: "Risk",
+          value: (factor.average_factor_scores.risk ?? 0) * 100,
+        },
       ]
     : [];
+
+  const regimeInfo = regime?.strategy?.regime_filter;
+  const pc = regime?.strategy?.portfolio_construction;
+  const benchmarkTicker = regime?.benchmark?.ticker ?? regimeInfo?.benchmark ?? "SPY";
+
+  const defensiveText =
+    regimeInfo?.defensive_tickers && regimeInfo.defensive_tickers.length > 0
+      ? regimeInfo.defensive_tickers.join(" / ")
+      : "-";
 
   return (
     <main className="mx-auto max-w-6xl p-8 space-y-8">
@@ -191,8 +258,8 @@ export default function StrategyPage() {
             onClick={() => setPeriod(p)}
             className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
               period === p
-                ? "bg-black text-white border-black"
-                : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+                ? "border-black bg-black text-white"
+                : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
             }`}
           >
             {p.toUpperCase()}
@@ -208,28 +275,28 @@ export default function StrategyPage() {
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">CAGR</div>
               <div className="text-2xl font-bold">
-                {((selectedBacktestMetrics.cagr ?? 0) * 100).toFixed(1)}%
+                {formatPct(selectedBacktestMetrics.cagr, 1)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Sharpe</div>
               <div className="text-2xl font-bold">
-                {(selectedBacktestMetrics.sharpe ?? 0).toFixed(2)}
+                {formatNum(selectedBacktestMetrics.sharpe, 2)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Max Drawdown</div>
               <div className="text-2xl font-bold">
-                {((selectedBacktestMetrics.max_drawdown ?? 0) * 100).toFixed(1)}%
+                {formatPct(selectedBacktestMetrics.max_drawdown, 1)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Total Return</div>
               <div className="text-2xl font-bold">
-                {((selectedBacktestMetrics.total_return ?? 0) * 100).toFixed(0)}%
+                {formatPct(selectedBacktestMetrics.total_return, 0)}
               </div>
             </div>
           </div>
@@ -297,7 +364,7 @@ export default function StrategyPage() {
             Market Regime Filter Impact ({period.toUpperCase()})
           </h2>
           <p className="mb-4 text-sm text-gray-600">
-            SPY vs 200DMA filter scales exposure in risk-off markets.
+            Buffered regime filter using {benchmarkTicker} moving-average trend and momentum.
           </p>
 
           {selectedRegimeMetrics ? (
@@ -305,28 +372,28 @@ export default function StrategyPage() {
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime CAGR</div>
                 <div className="text-2xl font-bold">
-                  {((selectedRegimeMetrics.cagr ?? 0) * 100).toFixed(1)}%
+                  {formatPct(selectedRegimeMetrics.cagr, 1)}
                 </div>
               </div>
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime Sharpe</div>
                 <div className="text-2xl font-bold">
-                  {(selectedRegimeMetrics.sharpe ?? 0).toFixed(2)}
+                  {formatNum(selectedRegimeMetrics.sharpe, 2)}
                 </div>
               </div>
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime MDD</div>
                 <div className="text-2xl font-bold">
-                  {((selectedRegimeMetrics.max_drawdown ?? 0) * 100).toFixed(1)}%
+                  {formatPct(selectedRegimeMetrics.max_drawdown, 1)}
                 </div>
               </div>
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Risk-Off Exposure</div>
                 <div className="text-2xl font-bold">
-                  {(((regime?.strategy?.regime_filter?.risk_off_exposure ?? 0) as number) * 100).toFixed(0)}%
+                  {formatPct(regimeInfo?.risk_off_exposure, 0)}
                 </div>
               </div>
             </div>
@@ -356,6 +423,75 @@ export default function StrategyPage() {
         </div>
       </section>
 
+      {regime && (
+        <section className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="mb-2 text-xl font-semibold">Regime Configuration</h2>
+            <p className="mb-4 text-sm text-gray-600">
+              Parameters currently loaded from backtest_regime_result.json
+            </p>
+
+            <div className="space-y-2 text-sm text-gray-700">
+              <div>Benchmark: {formatText(benchmarkTicker)}</div>
+              <div>MA window: {formatText(regimeInfo?.ma_window)}D</div>
+              <div>Momentum window: {formatText(regimeInfo?.momentum_window)}D</div>
+              <div>Buffer: {formatPct(regimeInfo?.buffer, 2)}</div>
+              <div>Confirm days: {formatText(regimeInfo?.confirm_days)}D</div>
+              <div>Stock rebalance: {formatText(regimeInfo?.stock_rebalance)}</div>
+              <div>Exposure rebalance: {formatText(regimeInfo?.exposure_rebalance)}</div>
+              <div>
+                Exposure: {formatPct(regimeInfo?.risk_on_exposure)} /{" "}
+                {formatPct(regimeInfo?.mid_exposure)} /{" "}
+                {formatPct(regimeInfo?.risk_off_exposure)}
+              </div>
+              <div>Defensive asset: {defensiveText}</div>
+            </div>
+
+            {regimeInfo?.summary && (
+              <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+                {regimeInfo.summary}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="mb-2 text-xl font-semibold">Portfolio Construction</h2>
+            <p className="mb-4 text-sm text-gray-600">
+              Current construction rules used in regime backtest.
+            </p>
+
+            <div className="space-y-2 text-sm text-gray-700">
+              <div>Selection: {formatText(regime.strategy?.selection)}</div>
+              <div>Top N: {formatText(regime.strategy?.top_n)}</div>
+              <div>Rebalance: {formatText(regime.strategy?.rebalance)}</div>
+              <div>Transaction cost: {formatPct(regime.strategy?.transaction_cost, 2)}</div>
+              <div>Backtest period: {formatText(regime.strategy?.period_years)}Y</div>
+              <div>Execution lag: {formatText(regime.strategy?.execution_lag_days)}D</div>
+              <div>Universe: {formatText(regime.strategy?.universe_method)}</div>
+              <div>Method: {formatText(pc?.method)}</div>
+              <div>Score alpha: {formatNum(pc?.score_alpha, 1)}</div>
+              <div>
+                Weight min / max: {formatPct(pc?.min_weight)} / {formatPct(pc?.max_weight)}
+              </div>
+              <div>Vol floor: {pc?.vol_floor != null ? pc.vol_floor.toFixed(3) : "-"}</div>
+              <div>
+                Absolute momentum 63D &gt; {formatPct(pc?.absolute_momentum_63d_min, 1)}
+              </div>
+              <div>
+                Absolute momentum 252D &gt; {formatPct(pc?.absolute_momentum_252d_min, 1)}
+              </div>
+              <div>Sector cap: {formatText(pc?.sector_max_names)} names</div>
+            </div>
+
+            {pc?.formula && (
+              <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+                <strong>Weight formula:</strong> {pc.formula}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section className="rounded-2xl border bg-white p-5 shadow-sm">
         <h2 className="mb-2 text-xl font-semibold">Sector Exposure</h2>
         <p className="mb-4 text-sm text-gray-600">
@@ -379,6 +515,21 @@ export default function StrategyPage() {
           </ResponsiveContainer>
         </div>
       </section>
+
+      {regime?.notes && regime.notes.length > 0 && (
+        <section className="rounded-2xl border bg-white p-5 shadow-sm">
+          <h2 className="mb-2 text-xl font-semibold">Backtest Notes</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            Notes exported from the latest regime backtest result.
+          </p>
+
+          <div className="space-y-2 text-sm text-gray-700">
+            {regime.notes.map((note, idx) => (
+              <div key={idx}>• {note}</div>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
