@@ -7,8 +7,6 @@ type Metrics = {
   cagr?: number;
   sharpe?: number;
   max_drawdown?: number;
-  total_return?: number;
-  volatility?: number;
 };
 
 type SubPeriod = {
@@ -21,9 +19,6 @@ type PortfolioConstruction = {
   absolute_momentum_63d_min?: number;
   absolute_momentum_252d_min?: number;
   sector_max_names?: number;
-  min_weight?: number;
-  max_weight?: number;
-  vol_floor?: number;
 };
 
 type RegimeFilter = {
@@ -35,8 +30,6 @@ type RegimeFilter = {
   mid_exposure?: number;
   risk_off_exposure?: number;
   defensive_tickers?: string[];
-  buffer?: number;
-  confirm_days?: number;
 };
 
 type BacktestSummaryData = {
@@ -49,12 +42,8 @@ type BacktestSummaryData = {
   };
 };
 
-function formatPct(v?: number, digits = 0) {
-  return `${((v ?? 0) * 100).toFixed(digits)}%`;
-}
-
-function formatNum(v?: number, digits = 2) {
-  return (v ?? 0).toFixed(digits);
+function formatPct(v?: number) {
+  return `${((v ?? 0) * 100).toFixed(0)}%`;
 }
 
 export default function BacktestSummary() {
@@ -69,16 +58,7 @@ export default function BacktestSummary() {
 
   if (!data?.metrics) return null;
 
-  const subperiods = data.subperiods ?? [];
-
-  const chosenPeriod =
-    subperiods.find((p) => p.label === "10y") ??
-    subperiods.find((p) => p.label === "5y") ??
-    subperiods.find((p) => p.label === "3y");
-
-  const m = chosenPeriod?.metrics ?? data.metrics;
-  const label = chosenPeriod?.label ?? "Full";
-
+  const m = data.subperiods?.find((p) => p.label === "3y")?.metrics ?? data.metrics;
   const regime = data.strategy?.regime_filter;
   const pc = data.strategy?.portfolio_construction;
   const topN = data.strategy?.top_n;
@@ -92,9 +72,9 @@ export default function BacktestSummary() {
     <div className="border rounded-xl p-6 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-2xl font-semibold">Backtest Summary ({label})</h2>
+          <h2 className="text-2xl font-semibold">Recommended Strategy (3Y)</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Top {topN ?? 15} momentum portfolio with buffered regime filter and inverse-volatility sizing
+            Alpha-weighted Top {topN ?? 15} selection with weekly 3-state regime filter
           </p>
         </div>
 
@@ -111,33 +91,19 @@ export default function BacktestSummary() {
                 <div>
                   Stock rebalance {regime.stock_rebalance} · Exposure rebalance {regime.exposure_rebalance}
                 </div>
-                {typeof regime.buffer === "number" && (
-                  <div>Buffer ±{formatPct(regime.buffer, 1)}</div>
-                )}
-                {typeof regime.confirm_days === "number" && (
-                  <div>Confirmation {regime.confirm_days} days</div>
-                )}
                 {defensiveText && <div>Defensive asset {defensiveText}</div>}
               </>
             )}
 
             {pc && (
               <>
-                <div>Score alpha {formatNum(pc.score_alpha, 1)}</div>
+                <div>Score alpha {(pc.score_alpha ?? 0).toFixed(1)}</div>
                 <div>
                   Absolute momentum 63D &gt; {(pc.absolute_momentum_63d_min ?? 0).toFixed(0)}%
                   {" · "}
                   252D &gt; {(pc.absolute_momentum_252d_min ?? 0).toFixed(0)}%
                 </div>
                 <div>Sector cap {pc.sector_max_names ?? 3} names</div>
-                {typeof pc.min_weight === "number" && typeof pc.max_weight === "number" && (
-                  <div>
-                    Weight range {formatPct(pc.min_weight)} ~ {formatPct(pc.max_weight)}
-                  </div>
-                )}
-                {typeof pc.vol_floor === "number" && (
-                  <div>Vol floor {formatNum(pc.vol_floor, 2)}</div>
-                )}
               </>
             )}
           </div>
