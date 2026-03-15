@@ -14,10 +14,11 @@
       "max_weight": 0.2,
       "vol_fallback": 0.35,
       "vol_floor": 0.18,
+      "dynamic_vol_targeting": true,
       "absolute_momentum_63d_min": 0,
       "absolute_momentum_252d_min": 0,
       "sector_max_names": 3,
-      "formula": "weight_i ∝ (score_i ^ alpha) / max(vol20_i, vol_floor)"
+      "formula": "weight_i ∝ (score_i ^ alpha) / max(vol20_i, max(vol_floor, spy_vol20))"
     },
     "regime_filter": {
       "benchmark": "SPY",
@@ -37,58 +38,60 @@
     }
   },
   "metrics": {
-    "total_return": 3.248857526412337,
-    "cagr": 0.14264021504930136,
-    "volatility": 0.21916054111032993,
-    "sharpe": 0.6508480693041059,
-    "max_drawdown": -0.4256746473765589
+    "total_return": 3.5151382822735266,
+    "cagr": 0.14917702530763832,
+    "volatility": 0.2041896358083009,
+    "sharpe": 0.7305807893584275,
+    "max_drawdown": -0.39717130761947605
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.8718689495395409,
-        "cagr": 0.23241926946240632,
-        "volatility": 0.23682929193486457,
-        "sharpe": 0.9813788977012559,
-        "max_drawdown": -0.2068813357335152
+        "total_return": 0.666263345908525,
+        "cagr": 0.18553545585415154,
+        "volatility": 0.2157277827830983,
+        "sharpe": 0.8600443274415731,
+        "max_drawdown": -0.18505997339474112
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 1.0345795708356569,
-        "cagr": 0.15264331514150342,
-        "volatility": 0.23265029844535573,
-        "sharpe": 0.656106251148248,
-        "max_drawdown": -0.2068813357335152
+        "total_return": 0.9334182427229705,
+        "cagr": 0.14094618992208496,
+        "volatility": 0.21130898001338455,
+        "sharpe": 0.6670146716583331,
+        "max_drawdown": -0.18505997339474123
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 3.7779644200128217,
-        "cagr": 0.16929553452278312,
-        "volatility": 0.2224292353905947,
-        "sharpe": 0.761120876154132,
-        "max_drawdown": -0.4256746473765589
+        "total_return": 3.988244451664661,
+        "cagr": 0.17434248467375135,
+        "volatility": 0.20726410188392416,
+        "sharpe": 0.8411610263864691,
+        "max_drawdown": -0.39717130761947605
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.8189319999413796,
-      "cagr": 0.13145978876933806,
-      "volatility": 0.1783003570846292,
-      "sharpe": 0.7372940296857703,
-      "max_drawdown": -0.33717280527429094
+      "total_return": 2.7573746894271887,
+      "cagr": 0.12986723343769202,
+      "volatility": 0.1783435382698227,
+      "sharpe": 0.7281858075576081,
+      "max_drawdown": -0.33717269081681334
     }
   },
   "notes": [
     "Universe is reconstructed point-in-time using current S&P1500 membership plus Wikipedia change events.",
     "Current universe combines S&P500, S&P400, and S&P600.",
     "Ranking uses historical slice through rebalance date close.",
+    "Geometric multiplicative scoring and RS (Relative Strength) vs SPY are applied to stock selection.",
+    "Dynamic Volatility Targeting is applied: minimum weight denominator floors at recent SPY 20D Volatility.",
     "Selected stock portfolio is applied with a 1-day execution lag.",
     "Exposure signal is applied with a 1-day execution lag.",
     "Transaction cost is applied when total portfolio weights change on execution day.",
