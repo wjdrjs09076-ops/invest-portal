@@ -2,14 +2,14 @@
   "strategy": {
     "rebalance": "monthly",
     "selection": "TOP",
-    "top_n": 15,
+    "top_n": 20,
     "transaction_cost": 0.0015,
     "period_years": 10,
     "execution_lag_days": 1,
     "universe_method": "point_in_time_sp1500_membership_from_wikipedia_events",
     "portfolio_construction": {
       "method": "score_x_inverse_vol",
-      "score_alpha": 1.8,
+      "score_alpha": 2.2,
       "min_weight": 0.05,
       "max_weight": 0.2,
       "vol_fallback": 0.35,
@@ -34,56 +34,57 @@
       "defensive_tickers": [
         "SHY"
       ],
-      "summary": "Exposure is updated on a weekly basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is SHY."
+      "summary": "Exposure is updated on a weekly basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is SHY.",
+      "vix_crash_filter": "Active ONLY if Price < MA200 AND VIX > 40.0"
     }
   },
   "metrics": {
-    "total_return": 3.5151382822735266,
-    "cagr": 0.14917702530763832,
-    "volatility": 0.2041896358083009,
-    "sharpe": 0.7305807893584275,
-    "max_drawdown": -0.39717130761947605
+    "total_return": 3.102912372581171,
+    "cagr": 0.13907337373881545,
+    "volatility": 0.1997560503637551,
+    "sharpe": 0.6962160769877223,
+    "max_drawdown": -0.37737310563704984
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.666263345908525,
-        "cagr": 0.18553545585415154,
-        "volatility": 0.2157277827830983,
-        "sharpe": 0.8600443274415731,
-        "max_drawdown": -0.18505997339474112
+        "total_return": 0.5721270758964816,
+        "cagr": 0.1627755266960229,
+        "volatility": 0.21042397718510844,
+        "sharpe": 0.7735597856931982,
+        "max_drawdown": -0.20309489766642952
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.9334182427229705,
-        "cagr": 0.14094618992208496,
-        "volatility": 0.21130898001338455,
-        "sharpe": 0.6670146716583331,
-        "max_drawdown": -0.18505997339474123
+        "total_return": 0.7761636460923089,
+        "cagr": 0.12175133578636732,
+        "volatility": 0.20753342614389828,
+        "sharpe": 0.5866589206788699,
+        "max_drawdown": -0.2030948976664294
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 3.988244451664661,
-        "cagr": 0.17434248467375135,
-        "volatility": 0.20726410188392416,
-        "sharpe": 0.8411610263864691,
-        "max_drawdown": -0.39717130761947605
+        "total_return": 3.502689995046045,
+        "cagr": 0.16237752662167093,
+        "volatility": 0.20231022163169388,
+        "sharpe": 0.802616522843218,
+        "max_drawdown": -0.37737310563704984
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.7573746894271887,
-      "cagr": 0.12986723343769202,
-      "volatility": 0.1783435382698227,
-      "sharpe": 0.7281858075576081,
-      "max_drawdown": -0.33717269081681334
+      "total_return": 2.7573756652304486,
+      "cagr": 0.12986726050374742,
+      "volatility": 0.17834346462491044,
+      "sharpe": 0.728186260017335,
+      "max_drawdown": -0.33717265762879367
     }
   },
   "notes": [
@@ -92,6 +93,7 @@
     "Ranking uses historical slice through rebalance date close.",
     "Geometric multiplicative scoring and RS (Relative Strength) vs SPY are applied to stock selection.",
     "Dynamic Volatility Targeting is applied: minimum weight denominator floors at recent SPY 20D Volatility.",
+    "Asymmetric Systemic Crash Filter: Triggers Risk-Off if Price < MA200 AND VIX > 40.0. Ignored in uptrends.",
     "Selected stock portfolio is applied with a 1-day execution lag.",
     "Exposure signal is applied with a 1-day execution lag.",
     "Transaction cost is applied when total portfolio weights change on execution day.",
