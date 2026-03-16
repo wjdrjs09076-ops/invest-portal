@@ -2,7 +2,7 @@
   "strategy": {
     "rebalance": "monthly",
     "selection": "TOP",
-    "top_n": 20,
+    "top_n": 15,
     "transaction_cost": 0.0015,
     "period_years": 10,
     "execution_lag_days": 1,
@@ -32,48 +32,49 @@
       "mid_exposure": 0.85,
       "risk_off_exposure": 0.35,
       "defensive_tickers": [
-        "SHY"
+        "TAIL",
+        "DBMF"
       ],
-      "summary": "Exposure is updated on a daily basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is SHY.",
+      "summary": "Exposure is updated on a daily basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is TAIL, DBMF.",
       "vix_crash_filter": "Active ONLY if Price < MA200 AND VIX > 40.0"
     }
   },
   "metrics": {
-    "total_return": 3.1701287974281867,
-    "cagr": 0.14078199907540712,
-    "volatility": 0.19674448861895433,
-    "sharpe": 0.7155575236878285,
-    "max_drawdown": -0.3165637204195655
+    "total_return": 3.852471971630486,
+    "cagr": 0.15684003717506356,
+    "volatility": 0.20264374150585787,
+    "sharpe": 0.7739693119046055,
+    "max_drawdown": -0.3503568609932285
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.5322227790406402,
-        "cagr": 0.15285309948491288,
-        "volatility": 0.2102910018926503,
-        "sharpe": 0.7268646690025358,
-        "max_drawdown": -0.21410771923368987
+        "total_return": 0.6288418177183477,
+        "cagr": 0.17659311716225123,
+        "volatility": 0.21547366849418287,
+        "sharpe": 0.8195577603349651,
+        "max_drawdown": -0.17879036459465125
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.6235739601750907,
-        "cagr": 0.1017788097793717,
-        "volatility": 0.2063939442033632,
-        "sharpe": 0.4931288569159153,
-        "max_drawdown": -0.23864479283450502
+        "total_return": 0.9120175728616042,
+        "cagr": 0.13840914513330493,
+        "volatility": 0.21053868182543803,
+        "sharpe": 0.6574048242976216,
+        "max_drawdown": -0.17879036459465125
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 3.552093994830697,
-        "cagr": 0.16364664609248059,
-        "volatility": 0.19913093804753684,
-        "sharpe": 0.8218042243813194,
-        "max_drawdown": -0.3165637204195654
+        "total_return": 4.281523893811962,
+        "cagr": 0.1810707794717339,
+        "volatility": 0.2054902713272789,
+        "sharpe": 0.8811647300973546,
+        "max_drawdown": -0.3503568609932285
       }
     }
   ],
@@ -82,9 +83,9 @@
     "metrics": {
       "total_return": 2.757374364159548,
       "cagr": 0.1298672244156751,
-      "volatility": 0.17834353428714547,
-      "sharpe": 0.7281857732312284,
-      "max_drawdown": -0.3371725271441378
+      "volatility": 0.17834347939849443,
+      "sharpe": 0.7281859973444672,
+      "max_drawdown": -0.33717260841362784
     }
   },
   "notes": [
@@ -101,7 +102,7 @@
     "Absolute momentum filter requires 63D return > 0 and 252D return > 0.",
     "Sector cap limits selected names to reduce concentration risk.",
     "Regime filter uses a 0.50% buffer around the moving average and 2-day confirmation to reduce whipsaw.",
-    "Risk-off sleeve uses SHY only.",
+    "Risk-off sleeve uses TAIL, DBMF only.",
     "Quality is not yet applied in backtest to avoid look-ahead bias."
   ]
 }
