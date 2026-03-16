@@ -27,64 +27,64 @@
       "buffer": 0.005,
       "confirm_days": 2,
       "stock_rebalance": "monthly",
-      "exposure_rebalance": "weekly",
+      "exposure_rebalance": "daily",
       "risk_on_exposure": 1.0,
       "mid_exposure": 0.85,
       "risk_off_exposure": 0.35,
       "defensive_tickers": [
         "SHY"
       ],
-      "summary": "Exposure is updated on a weekly basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is SHY.",
+      "summary": "Exposure is updated on a daily basis using a buffered 3-state regime model with 200DMA, 63D momentum, 0.50% hysteresis band, and 2-day confirmation. Risk-off sleeve is SHY.",
       "vix_crash_filter": "Active ONLY if Price < MA200 AND VIX > 40.0"
     }
   },
   "metrics": {
-    "total_return": 3.102912372581171,
-    "cagr": 0.13907337373881545,
-    "volatility": 0.1997560503637551,
-    "sharpe": 0.6962160769877223,
-    "max_drawdown": -0.37737310563704984
+    "total_return": 3.1701287974281867,
+    "cagr": 0.14078199907540712,
+    "volatility": 0.19674448861895433,
+    "sharpe": 0.7155575236878285,
+    "max_drawdown": -0.3165637204195655
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.5721270758964816,
-        "cagr": 0.1627755266960229,
-        "volatility": 0.21042397718510844,
-        "sharpe": 0.7735597856931982,
-        "max_drawdown": -0.20309489766642952
+        "total_return": 0.5322227790406402,
+        "cagr": 0.15285309948491288,
+        "volatility": 0.2102910018926503,
+        "sharpe": 0.7268646690025358,
+        "max_drawdown": -0.21410771923368987
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.7761636460923089,
-        "cagr": 0.12175133578636732,
-        "volatility": 0.20753342614389828,
-        "sharpe": 0.5866589206788699,
-        "max_drawdown": -0.2030948976664294
+        "total_return": 0.6235739601750907,
+        "cagr": 0.1017788097793717,
+        "volatility": 0.2063939442033632,
+        "sharpe": 0.4931288569159153,
+        "max_drawdown": -0.23864479283450502
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 3.502689995046045,
-        "cagr": 0.16237752662167093,
-        "volatility": 0.20231022163169388,
-        "sharpe": 0.802616522843218,
-        "max_drawdown": -0.37737310563704984
+        "total_return": 3.552093994830697,
+        "cagr": 0.16364664609248059,
+        "volatility": 0.19913093804753684,
+        "sharpe": 0.8218042243813194,
+        "max_drawdown": -0.3165637204195654
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.7573756652304486,
-      "cagr": 0.12986726050374742,
-      "volatility": 0.17834346462491044,
-      "sharpe": 0.728186260017335,
-      "max_drawdown": -0.33717265762879367
+      "total_return": 2.757374364159548,
+      "cagr": 0.1298672244156751,
+      "volatility": 0.17834353428714547,
+      "sharpe": 0.7281857732312284,
+      "max_drawdown": -0.3371725271441378
     }
   },
   "notes": [
@@ -97,7 +97,7 @@
     "Selected stock portfolio is applied with a 1-day execution lag.",
     "Exposure signal is applied with a 1-day execution lag.",
     "Transaction cost is applied when total portfolio weights change on execution day.",
-    "Stock selection is monthly, while exposure adjustment is weekly.",
+    "Stock selection is monthly, while exposure adjustment is daily.",
     "Absolute momentum filter requires 63D return > 0 and 252D return > 0.",
     "Sector cap limits selected names to reduce concentration risk.",
     "Regime filter uses a 0.50% buffer around the moving average and 2-day confirmation to reduce whipsaw.",
