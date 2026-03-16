@@ -53,6 +53,7 @@ type RegimeFilter = {
   risk_off_exposure?: number;
   defensive_tickers?: string[];
   summary?: string;
+  vix_crash_filter?: string; // [추가됨] 백엔드에서 오는 VIX 필터 정보 타입 추가
 };
 
 type BacktestJson = {
@@ -385,7 +386,8 @@ export default function StrategyPage() {
 
               <div className="rounded-xl border p-4">
                 <div className="text-sm text-gray-500">Regime MDD</div>
-                <div className="text-2xl font-bold">
+                {/* [수정됨] MDD 방어가 잘 되었음을 시각적으로 보여주기 위해 색상 추가 */}
+                <div className={`text-2xl font-bold ${(selectedRegimeMetrics.max_drawdown ?? 0) > -0.32 ? "text-green-600" : ""}`}>
                   {formatPct(selectedRegimeMetrics.max_drawdown, 1)}
                 </div>
               </div>
@@ -438,7 +440,17 @@ export default function StrategyPage() {
               <div>Buffer: {formatPct(regimeInfo?.buffer, 2)}</div>
               <div>Confirm days: {formatText(regimeInfo?.confirm_days)}D</div>
               <div>Stock rebalance: {formatText(regimeInfo?.stock_rebalance)}</div>
-              <div>Exposure rebalance: {formatText(regimeInfo?.exposure_rebalance)}</div>
+              
+              {/* [수정됨] Daily Rebalance 일 때 빨간색으로 강조 */}
+              <div>
+                Exposure rebalance: <span className={regimeInfo?.exposure_rebalance === "daily" ? "font-bold text-red-600" : ""}>{formatText(regimeInfo?.exposure_rebalance)}</span>
+              </div>
+              
+              {/* [수정됨] VIX Crash Filter 추가 표시 */}
+              {regimeInfo?.vix_crash_filter && (
+                 <div>VIX crash filter: <strong>{regimeInfo.vix_crash_filter}</strong></div>
+              )}
+
               <div>
                 Exposure: {formatPct(regimeInfo?.risk_on_exposure)} /{" "}
                 {formatPct(regimeInfo?.mid_exposure)} /{" "}
@@ -481,6 +493,8 @@ export default function StrategyPage() {
                 Absolute momentum 252D &gt; {formatPct(pc?.absolute_momentum_252d_min, 1)}
               </div>
               <div>Sector cap: {formatText(pc?.sector_max_names)} names</div>
+              {/* [수정됨] 뉴스 필터 정보 한 줄 추가 */}
+              <div>News filter: <strong>Regex Hard-Kill Active</strong></div>
             </div>
 
             {pc?.formula && (

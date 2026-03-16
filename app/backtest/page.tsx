@@ -53,6 +53,7 @@ type RegimeFilter = {
   risk_off_exposure?: number;
   defensive_tickers?: string[];
   summary?: string;
+  vix_crash_filter?: string; // [수정됨] 백엔드에서 넘어오는 VIX 데이터 타입 추가
 };
 
 type StrategyInfo = {
@@ -470,7 +471,12 @@ export default function BacktestPage() {
               <div>Buffer: {formatPct(regimeInfo?.buffer, 2)}</div>
               <div>Confirm days: {formatText(regimeInfo?.confirm_days)}D</div>
               <div>Stock rebalance: {formatText(regimeInfo?.stock_rebalance)}</div>
-              <div>Exposure rebalance: {formatText(regimeInfo?.exposure_rebalance)}</div>
+              {/* [수정됨] Exposure rebalance가 daily일 때 색상 강조 */}
+              <div>
+                Exposure rebalance: <strong style={{ color: regimeInfo?.exposure_rebalance === "daily" ? "#dc2626" : "inherit" }}>{formatText(regimeInfo?.exposure_rebalance)}</strong>
+              </div>
+              {/* [수정됨] 백엔드에서 받아온 VIX Crash Filter 출력 */}
+              <div>VIX crash filter: <strong>{formatText(regimeInfo?.vix_crash_filter)}</strong></div>
               <div>
                 Exposure: {formatPct(regimeInfo?.risk_on_exposure)} /{" "}
                 {formatPct(regimeInfo?.mid_exposure)} /{" "}
@@ -505,6 +511,8 @@ export default function BacktestPage() {
                 Absolute momentum 252D &gt; {formatPct(pc?.absolute_momentum_252d_min, 1)}
               </div>
               <div>Sector cap: {formatText(pc?.sector_max_names)} names</div>
+              {/* [수정됨] 뉴스 필터 정보 추가 */}
+              <div>News filter: <strong>Regex Hard-Kill Active</strong></div>
             </div>
           </div>
         </div>
