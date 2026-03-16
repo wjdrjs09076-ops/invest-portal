@@ -3,6 +3,7 @@
     "rebalance": "monthly",
     "selection": "TOP",
     "top_n": 15,
+    "hold_buffer_n": 25,
     "transaction_cost": 0.0015,
     "period_years": 10,
     "execution_lag_days": 1,
@@ -40,58 +41,59 @@
     }
   },
   "metrics": {
-    "total_return": 3.852471971630486,
-    "cagr": 0.15684003717506356,
-    "volatility": 0.20264374150585787,
-    "sharpe": 0.7739693119046055,
-    "max_drawdown": -0.3503568609932285
+    "total_return": 4.601850060132484,
+    "cagr": 0.17226603873541446,
+    "volatility": 0.20465402039410346,
+    "sharpe": 0.8417427539594908,
+    "max_drawdown": -0.3571439771657139
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.6288418177183477,
-        "cagr": 0.17659311716225123,
-        "volatility": 0.21547366849418287,
-        "sharpe": 0.8195577603349651,
-        "max_drawdown": -0.17879036459465125
+        "total_return": 0.8358469478693453,
+        "cagr": 0.22446250424788383,
+        "volatility": 0.2198628477719059,
+        "sharpe": 1.0209205717227396,
+        "max_drawdown": -0.20952421834154722
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 0.9120175728616042,
-        "cagr": 0.13840914513330493,
-        "volatility": 0.21053868182543803,
-        "sharpe": 0.6574048242976216,
-        "max_drawdown": -0.17879036459465125
+        "total_return": 1.123868148657742,
+        "cagr": 0.16258712849047807,
+        "volatility": 0.21366831636650757,
+        "sharpe": 0.7609323237778999,
+        "max_drawdown": -0.20952421834154733
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 4.281523893811962,
-        "cagr": 0.1810707794717339,
-        "volatility": 0.2054902713272789,
-        "sharpe": 0.8811647300973546,
-        "max_drawdown": -0.3503568609932285
+        "total_return": 5.154233852175259,
+        "cagr": 0.19927118640219388,
+        "volatility": 0.20742030422176752,
+        "sharpe": 0.9607120534792927,
+        "max_drawdown": -0.357143977165714
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.757374364159548,
-      "cagr": 0.1298672244156751,
-      "volatility": 0.17834347939849443,
-      "sharpe": 0.7281859973444672,
-      "max_drawdown": -0.33717260841362784
+      "total_return": 2.757375014694886,
+      "cagr": 0.1298672424597096,
+      "volatility": 0.1783434950002733,
+      "sharpe": 0.728186034817309,
+      "max_drawdown": -0.33717241268661047
     }
   },
   "notes": [
     "Universe is reconstructed point-in-time using current S&P1500 membership plus Wikipedia change events.",
     "Current universe combines S&P500, S&P400, and S&P600.",
     "Ranking uses historical slice through rebalance date close.",
+    "Buffer Ranking Applied: Buy top 15, Hold existing if ranked <= 25.",
     "Geometric multiplicative scoring and RS (Relative Strength) vs SPY are applied to stock selection.",
     "Dynamic Volatility Targeting is applied: minimum weight denominator floors at recent SPY 20D Volatility.",
     "Asymmetric Systemic Crash Filter: Triggers Risk-Off if Price < MA200 AND VIX > 40.0. Ignored in uptrends.",
