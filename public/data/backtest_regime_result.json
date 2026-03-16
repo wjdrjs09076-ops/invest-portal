@@ -31,7 +31,7 @@
       "exposure_rebalance": "daily",
       "risk_on_exposure": 1.0,
       "mid_exposure": 0.85,
-      "risk_off_exposure": 0.35,
+      "risk_off_exposure": 0.4,
       "defensive_tickers": [
         "TAIL",
         "DBMF"
@@ -41,52 +41,52 @@
     }
   },
   "metrics": {
-    "total_return": 4.601850060132484,
-    "cagr": 0.17226603873541446,
-    "volatility": 0.20465402039410346,
-    "sharpe": 0.8417427539594908,
-    "max_drawdown": -0.3571439771657139
+    "total_return": 4.680180761320989,
+    "cagr": 0.17376850905150354,
+    "volatility": 0.20587278878909213,
+    "sharpe": 0.8440576827738121,
+    "max_drawdown": -0.36647249687732575
   },
   "subperiods": [
     {
       "label": "3y",
       "metrics": {
-        "total_return": 0.8358469478693453,
-        "cagr": 0.22446250424788383,
-        "volatility": 0.2198628477719059,
-        "sharpe": 1.0209205717227396,
-        "max_drawdown": -0.20952421834154722
+        "total_return": 0.8501149361525713,
+        "cagr": 0.22762644832133083,
+        "volatility": 0.22022915197234832,
+        "sharpe": 1.0335890879237972,
+        "max_drawdown": -0.20896116680082188
       }
     },
     {
       "label": "5y",
       "metrics": {
-        "total_return": 1.123868148657742,
-        "cagr": 0.16258712849047807,
-        "volatility": 0.21366831636650757,
-        "sharpe": 0.7609323237778999,
-        "max_drawdown": -0.20952421834154733
+        "total_return": 1.1509428313972832,
+        "cagr": 0.16553621842348387,
+        "volatility": 0.2142735350499864,
+        "sharpe": 0.7725462614170577,
+        "max_drawdown": -0.20896116680082188
       }
     },
     {
       "label": "10y",
       "metrics": {
-        "total_return": 5.154233852175259,
-        "cagr": 0.19927118640219388,
-        "volatility": 0.20742030422176752,
-        "sharpe": 0.9607120534792927,
-        "max_drawdown": -0.357143977165714
+        "total_return": 5.240284832543538,
+        "cagr": 0.20093759725315596,
+        "volatility": 0.2087230368235222,
+        "sharpe": 0.9626996632051261,
+        "max_drawdown": -0.36647249687732586
       }
     }
   ],
   "benchmark": {
     "ticker": "SPY",
     "metrics": {
-      "total_return": 2.757375014694886,
-      "cagr": 0.1298672424597096,
-      "volatility": 0.1783434950002733,
-      "sharpe": 0.728186034817309,
-      "max_drawdown": -0.33717241268661047
+      "total_return": 2.757374364159548,
+      "cagr": 0.1298672244156751,
+      "volatility": 0.17834349642411054,
+      "sharpe": 0.7281859278279695,
+      "max_drawdown": -0.3371727068439593
     }
   },
   "notes": [
