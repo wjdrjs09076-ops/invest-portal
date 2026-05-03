@@ -150,7 +150,7 @@ export default function BannersClient() {
         <div className="text-xs text-gray-500">{data.generated_at_utc}</div>
       </div>
 
-      {data.universes.map((u) => {
+      {data.universes.flatMap((u) => {
         // 이 유니버스에서 후보 티커 모으기
         const tickers: string[] = [];
         for (const s of u.sections || []) for (const it of s.items || []) tickers.push(it.ticker);
@@ -165,14 +165,13 @@ export default function BannersClient() {
 
         const top3 = scored.slice(0, 3);
 
-        if (top3.length === 0) return null;
+        if (top3.length === 0) return [];
 
-        return (
+        return [
           <section key={u.universe} className=”space-y-3”>
             <div className=”flex items-center justify-between gap-4”>
               <h3 className=”font-semibold”>{u.universe}</h3>
 
-              {/* ✅ 문구: Top3가 “추천 상위 3개 종목”임을 명시 */}
               <span className=”text-xs rounded-full border px-3 py-1 bg-blue-50 text-blue-700”>
                 🔥 Top 3 Recommended Today (same as Company score)
               </span>
@@ -191,39 +190,38 @@ export default function BannersClient() {
                   <a
                     key={r.ticker}
                     href={`/company/${encodeURIComponent(r.ticker)}`}
-                    className="rounded-xl border p-4 hover:bg-gray-50 transition"
+                    className=”rounded-xl border p-4 hover:bg-gray-50 transition”
                   >
-                    <div className="flex items-start justify-between">
+                    <div className=”flex items-start justify-between”>
                       <div>
-                        <div className="text-xl font-bold">{r.ticker}</div>
-                        <div className="text-sm text-gray-700">
+                        <div className=”text-xl font-bold”>{r.ticker}</div>
+                        <div className=”text-sm text-gray-700”>
                           {r.signal} • score {r.score}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs rounded border px-2 py-0.5">
+                      <div className=”flex items-center gap-2”>
+                        <span className=”text-xs rounded border px-2 py-0.5”>
                           {signalBadge(r.signal)}
                         </span>
                         {lowConf && (
-                          <span className="text-xs rounded border border-red-300 text-red-600 px-2 py-0.5">
+                          <span className=”text-xs rounded border border-red-300 text-red-600 px-2 py-0.5”>
                             LOW CONF
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="mt-2 text-xs text-gray-500">
-                      Coverage: {typeof coverage === "number" ? `${Math.round(coverage * 100)}%` : "N/A"} •{" "}
+                    <div className=”mt-2 text-xs text-gray-500”>
+                      Coverage: {typeof coverage === “number” ? `${Math.round(coverage * 100)}%` : “N/A”} •{“ “}
                       {fmtIsoShort(r.generated_at_utc)}
                     </div>
                   </a>
                 );
               })}
             </div>
-
-          </section>
-        );
+          </section>,
+        ];
       })}
     </div>
   );
