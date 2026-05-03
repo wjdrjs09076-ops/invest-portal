@@ -160,27 +160,29 @@ export default function BannersClient() {
         // recommendation 결과가 있는 것만 모아서 점수 정렬
         const scored = uniqTickers
           .map((t) => recos[t])
-          .filter(Boolean)
+          .filter((x): x is Reco => x !== undefined)
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
         const top3 = scored.slice(0, 3);
 
+        if (top3.length === 0) return null;
+
         return (
-          <section key={u.universe} className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="font-semibold">{u.universe}</h3>
+          <section key={u.universe} className=”space-y-3”>
+            <div className=”flex items-center justify-between gap-4”>
+              <h3 className=”font-semibold”>{u.universe}</h3>
 
               {/* ✅ 문구: Top3가 “추천 상위 3개 종목”임을 명시 */}
-              <span className="text-xs rounded-full border px-3 py-1 bg-blue-50 text-blue-700">
+              <span className=”text-xs rounded-full border px-3 py-1 bg-blue-50 text-blue-700”>
                 🔥 Top 3 Recommended Today (same as Company score)
               </span>
             </div>
 
-            <p className="text-sm text-gray-600">
+            <p className=”text-sm text-gray-600”>
               Ranked by <b>Company Recommendation Score</b> (same engine used on the company page).
             </p>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className=”grid gap-4 md:grid-cols-2”>
               {top3.map((r) => {
                 const lowConf = Boolean(r.diagnostics?.low_conf);
                 const coverage = r.diagnostics?.coverage;
@@ -220,12 +222,6 @@ export default function BannersClient() {
               })}
             </div>
 
-            {/* fallback: recommendation이 아직 로딩/없을 때 */}
-            {top3.length === 0 && (
-              <div className="text-sm text-gray-600">
-                Recommendation data is loading (or unavailable). Try refresh.
-              </div>
-            )}
           </section>
         );
       })}
