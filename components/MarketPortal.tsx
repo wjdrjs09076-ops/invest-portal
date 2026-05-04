@@ -186,14 +186,16 @@ export default function MarketPortal() {
     if (!data) return [];
 
     if (Array.isArray(data.groups) && data.groups.length > 0) {
-      return data.groups.map((g) => ({
-        key: g.key,
-        label: g.label,
-        description:
-          g.description ||
-          "Ranked by composite score (Momentum + RSI + Sector strength + Risk).",
-        top3: Array.isArray(g.top3) ? g.top3.slice(0, 3) : [],
-      }));
+      return data.groups
+        .map((g) => ({
+          key: g.key,
+          label: g.label,
+          description:
+            g.description ||
+            "Ranked by composite score (Momentum + RSI + Sector strength + Risk).",
+          top3: Array.isArray(g.top3) ? g.top3.slice(0, 3) : [],
+        }))
+        .filter((g) => g.top3.length > 0);
     }
 
     return [
