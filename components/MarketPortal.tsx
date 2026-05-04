@@ -195,7 +195,7 @@ export default function MarketPortal() {
             "Ranked by composite score (Momentum + RSI + Sector strength + Risk).",
           top3: Array.isArray(g.top3) ? g.top3.slice(0, 3) : [],
         }))
-        .filter((g) => g.top3.length > 0);
+        .filter((g) => Array.isArray(g.top3) && g.top3.length > 0);
     }
 
     return [
