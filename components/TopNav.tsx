@@ -18,6 +18,12 @@ export default function TopNav() {
           <Link href="/strategy" className="hover:text-black">
             Strategy Lab
           </Link>
+          <Link
+            href="/live"
+            className="rounded-full bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
+          >
+            🔴 Live
+          </Link>
         </nav>
       </div>
     </header>
