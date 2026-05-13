@@ -148,7 +148,6 @@ function getMetricsByPeriod<T extends { metrics?: Metrics; subperiods?: SubPerio
 export default function StrategyPage() {
   const [period, setPeriod] = useState<"3y" | "5y" | "10y">("10y");
 
-  const [backtest, setBacktest] = useState<BacktestJson | null>(null);
   const [corr, setCorr] = useState<ScoreCorrelationJson | null>(null);
   const [topn, setTopn] = useState<TopNJson | null>(null);
   const [sector, setSector] = useState<SectorExposureJson | null>(null);
@@ -159,8 +158,7 @@ export default function StrategyPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [b, c, t, s, r, f] = await Promise.all([
-          fetch("/data/backtest_result.json").then((res) => res.json()),
+        const [c, t, s, r, f] = await Promise.all([
           fetch("/data/score_correlation.json").then((res) => res.json()),
           fetch("/data/topn_sensitivity.json").then((res) => res.json()),
           fetch("/data/sector_exposure.json").then((res) => res.json()),
@@ -172,7 +170,6 @@ export default function StrategyPage() {
             .catch(() => null),
         ]);
 
-        setBacktest(b);
         setCorr(c);
         setTopn(t);
         setSector(s);
@@ -191,7 +188,6 @@ export default function StrategyPage() {
     return <main className="mx-auto max-w-6xl p-8">{error}</main>;
   }
 
-  const selectedBacktestMetrics = getMetricsByPeriod(backtest, period);
   const selectedRegimeMetrics = getMetricsByPeriod(regime, period);
 
   const corrChartData =
@@ -268,36 +264,43 @@ export default function StrategyPage() {
         ))}
       </div>
 
-      {selectedBacktestMetrics && (
+      {selectedRegimeMetrics && (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Backtest Performance ({period.toUpperCase()})</h2>
+          <h2 className="text-xl font-semibold">Regime Strategy Performance ({period.toUpperCase()})</h2>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">CAGR</div>
               <div className="text-2xl font-bold">
-                {formatPct(selectedBacktestMetrics.cagr, 1)}
+                {formatPct(selectedRegimeMetrics.cagr, 1)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Sharpe</div>
               <div className="text-2xl font-bold">
-                {formatNum(selectedBacktestMetrics.sharpe, 2)}
+                {formatNum(selectedRegimeMetrics.sharpe, 2)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Max Drawdown</div>
               <div className="text-2xl font-bold">
-                {formatPct(selectedBacktestMetrics.max_drawdown, 1)}
+                {formatPct(selectedRegimeMetrics.max_drawdown, 1)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="text-sm text-gray-500">Volatility</div>
+              <div className="text-2xl font-bold">
+                {formatPct(selectedRegimeMetrics.volatility, 1)}
               </div>
             </div>
 
             <div className="rounded-xl border bg-white p-4 shadow-sm">
               <div className="text-sm text-gray-500">Total Return</div>
               <div className="text-2xl font-bold">
-                {formatPct(selectedBacktestMetrics.total_return, 0)}
+                {formatPct(selectedRegimeMetrics.total_return, 0)}
               </div>
             </div>
           </div>
@@ -361,46 +364,37 @@ export default function StrategyPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
-          <h2 className="mb-2 text-xl font-semibold">
-            Market Regime Filter Impact ({period.toUpperCase()})
-          </h2>
+          <h2 className="mb-2 text-xl font-semibold">Regime Filter</h2>
           <p className="mb-4 text-sm text-gray-600">
-            Buffered regime filter using {benchmarkTicker} moving-average trend and momentum.
+            3-state regime filter using {benchmarkTicker} 200D MA + 63D momentum. Exposure shifts
+            dynamically to reduce drawdown in risk-off periods.
           </p>
 
-          {selectedRegimeMetrics ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border p-4">
-                <div className="text-sm text-gray-500">Regime CAGR</div>
-                <div className="text-2xl font-bold">
-                  {formatPct(selectedRegimeMetrics.cagr, 1)}
-                </div>
-              </div>
-
-              <div className="rounded-xl border p-4">
-                <div className="text-sm text-gray-500">Regime Sharpe</div>
-                <div className="text-2xl font-bold">
-                  {formatNum(selectedRegimeMetrics.sharpe, 2)}
-                </div>
-              </div>
-
-              <div className="rounded-xl border p-4">
-                <div className="text-sm text-gray-500">Regime MDD</div>
-                {/* [수정됨] MDD 방어가 잘 되었음을 시각적으로 보여주기 위해 색상 추가 */}
-                <div className={`text-2xl font-bold ${(selectedRegimeMetrics.max_drawdown ?? 0) > -0.32 ? "text-green-600" : ""}`}>
-                  {formatPct(selectedRegimeMetrics.max_drawdown, 1)}
-                </div>
-              </div>
-
-              <div className="rounded-xl border p-4">
-                <div className="text-sm text-gray-500">Risk-Off Exposure</div>
-                <div className="text-2xl font-bold">
-                  {formatPct(regimeInfo?.risk_off_exposure, 0)}
-                </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-xl border p-4">
+              <div className="text-sm text-gray-500">Risk-On</div>
+              <div className="text-2xl font-bold text-green-600">
+                {formatPct(regimeInfo?.risk_on_exposure, 0)}
               </div>
             </div>
-          ) : (
-            <div className="text-sm text-gray-500">Run regime backtest first.</div>
+            <div className="rounded-xl border p-4">
+              <div className="text-sm text-gray-500">Mid</div>
+              <div className="text-2xl font-bold text-yellow-600">
+                {formatPct(regimeInfo?.mid_exposure, 0)}
+              </div>
+            </div>
+            <div className="rounded-xl border p-4">
+              <div className="text-sm text-gray-500">Risk-Off</div>
+              <div className="text-2xl font-bold text-red-500">
+                {formatPct(regimeInfo?.risk_off_exposure, 0)}
+              </div>
+            </div>
+          </div>
+
+          {defensiveText !== "-" && (
+            <p className="mt-3 text-sm text-gray-500">
+              Defensive sleeve: <span className="font-medium text-gray-700">{defensiveText}</span>
+            </p>
           )}
         </div>
 
@@ -452,11 +446,10 @@ export default function StrategyPage() {
               )}
 
               <div>
-                Exposure: {formatPct(regimeInfo?.risk_on_exposure)} /{" "}
+                Exposure (on/mid/off): {formatPct(regimeInfo?.risk_on_exposure)} /{" "}
                 {formatPct(regimeInfo?.mid_exposure)} /{" "}
                 {formatPct(regimeInfo?.risk_off_exposure)}
               </div>
-              <div>Defensive asset: {defensiveText}</div>
             </div>
 
             {regimeInfo?.summary && (
