@@ -232,6 +232,39 @@ function rebaseCurve(points: MergedCurvePoint[]): MergedCurvePoint[] {
   }));
 }
 
+function computeMetricsFromEquity(values: number[]): Metrics {
+  if (values.length < 2) return {};
+
+  const dailyReturns: number[] = [];
+  for (let i = 1; i < values.length; i++) {
+    if (values[i - 1] > 0) dailyReturns.push(values[i] / values[i - 1] - 1);
+  }
+  if (!dailyReturns.length) return {};
+
+  const first = values[0];
+  const last = values[values.length - 1];
+  const totalReturn = last / first - 1;
+  const years = dailyReturns.length / 252;
+  const cagr = Math.pow(last / first, 1 / years) - 1;
+
+  const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+  const variance =
+    dailyReturns.reduce((a, b) => a + (b - mean) ** 2, 0) /
+    Math.max(dailyReturns.length - 1, 1);
+  const vol = Math.sqrt(variance) * Math.sqrt(252);
+  const sharpe = vol > 0 ? (mean * 252) / vol : 0;
+
+  let peak = values[0];
+  let mdd = 0;
+  for (const v of values) {
+    peak = Math.max(peak, v);
+    const dd = peak > 0 ? (v - peak) / peak : 0;
+    mdd = Math.min(mdd, dd);
+  }
+
+  return { cagr, volatility: vol, sharpe, max_drawdown: mdd, total_return: totalReturn };
+}
+
 export default function BacktestPage() {
   const [period, setPeriod] = useState<"3y" | "5y" | "10y">("10y");
 
@@ -301,6 +334,22 @@ export default function BacktestPage() {
     return rebaseCurve(sliced);
   }, [mergedCurve, period]);
 
+  const spyMetrics: Metrics = useMemo(() => {
+    if (!mergedCurve.length) return {};
+
+    const cutoff = getPeriodStartDate(period);
+    const sliced =
+      cutoff == null
+        ? mergedCurve
+        : mergedCurve.filter((row) => new Date(row.date) >= cutoff);
+
+    const spyValues = sliced
+      .map((p) => p.spy)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+
+    return computeMetricsFromEquity(spyValues);
+  }, [mergedCurve, period]);
+
   const corrChartData =
     scoreCorr?.data?.map((x) => ({
       quantile: x.quantile,
@@ -311,9 +360,7 @@ export default function BacktestPage() {
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  const base = baseSummary ? getMetricsByPeriod(baseSummary, period) : undefined;
   const regime = getMetricsByPeriod(regimeSummary, period);
-  const spy = getBenchmarkMetricsByPeriod(regimeSummary, period);
 
   const strategy = regimeSummary.strategy;
   const regimeInfo = strategy?.regime_filter;
@@ -364,14 +411,6 @@ export default function BacktestPage() {
       </div>
 
       <div style={{ display: "grid", gap: 16, marginBottom: 24 }}>
-        {baseSummary && (
-          <MetricCard
-            title={`Base Strategy (${period.toUpperCase()})`}
-            subtitle="Momentum + sector strength + risk filter"
-            metrics={base}
-          />
-        )}
-
         <MetricCard
           title={`Regime-Filtered Strategy (${period.toUpperCase()})`}
           subtitle={regimeSubtitle}
@@ -381,7 +420,7 @@ export default function BacktestPage() {
         <MetricCard
           title={`Benchmark (${benchmarkTicker})`}
           subtitle={`${period.toUpperCase()} benchmark reference`}
-          metrics={spy}
+          metrics={spyMetrics}
         />
       </div>
 
@@ -395,7 +434,7 @@ export default function BacktestPage() {
         }}
       >
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
-          SPY vs Base vs Regime ({period.toUpperCase()})
+          SPY vs Regime ({period.toUpperCase()})
         </h2>
 
         <div style={{ color: "#666", marginBottom: 12 }}>
@@ -414,14 +453,6 @@ export default function BacktestPage() {
               dataKey="spy"
               name="SPY"
               stroke="#16a34a"
-              dot={false}
-              strokeWidth={2}
-            />
-            <Line
-              type="monotone"
-              dataKey="base"
-              name="Base Strategy"
-              stroke="#2563eb"
               dot={false}
               strokeWidth={2}
             />
