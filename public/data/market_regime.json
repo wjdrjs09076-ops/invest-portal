@@ -1,10 +1,9 @@
 {
-  "generated_at": "2026-05-13T02:05:07.182464+00:00",
+  "generated_at": "2026-05-19T03:22:21.912104+00:00",
   "benchmark": "SPY",
   "ma_window": 200,
-  "last_close": 738.179993,
-  "last_ma": 671.640044,
-  "mom63": 0.069709,
+  "last_close": 738.6500244140625,
+  "last_ma": 673.8946081542969,
   "regime": "RISK_ON",
   "suggested_exposure": 1.0
 }
