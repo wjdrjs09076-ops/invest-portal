@@ -25,8 +25,8 @@ type DailyRecord = {
 type Summary = {
   total_return: number;
   days: number;
-  cagr: number;
-  sharpe: number;
+  cagr: number | null;
+  sharpe: number | null;
   mdd: number;
   last_date: string;
   last_equity: number;
@@ -43,11 +43,13 @@ type LiveData = {
   daily: DailyRecord[];
 };
 
-function pct(v: number) {
+function pct(v: number | null | undefined) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return `${(v * 100).toFixed(2)}%`;
 }
 
-function fmt(v: number, digits = 2) {
+function fmt(v: number | null | undefined, digits = 2) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return v.toFixed(digits);
 }
 
