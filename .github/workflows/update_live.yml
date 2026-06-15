@@ -1,0 +1,46 @@
+name: Update live performance (Alpaca)
+
+# 라이브 성과 페이지를 Alpaca 계좌 실제 equity 기준으로 매일 갱신.
+# 구 invest-data/update_live_performance.py(yfinance 추정) 대체 — 유령 포트폴리오 사고 방지.
+on:
+  workflow_dispatch:
+  schedule:
+    # 22:00 UTC = 미국 동부 17:00(EST)~18:00(EDT) — 장 마감 후
+    - cron: "0 22 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-live
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install alpaca-py yfinance pandas
+
+      - name: Update live_performance.json
+        env:
+          ALPACA_API_KEY:    ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          LIVE_SINCE:        "2026-06-15"   # 정상거래 재시작 기준일
+        run: python scripts/update_live.py
+
+      - name: Commit & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/live_performance.json
+          git diff --cached --quiet || git commit -m "data: live update [$(date -u '+%Y-%m-%d')]"
+          git push
