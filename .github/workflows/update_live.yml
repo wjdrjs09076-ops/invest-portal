@@ -34,7 +34,9 @@ jobs:
         env:
           ALPACA_API_KEY:    ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-          LIVE_SINCE:        "2026-06-15"   # 정상거래 재시작 기준일
+          # 폴백용(파일에 baseline_equity/live_start 있으면 무시됨). 정상거래 재시작 기준.
+          LIVE_BASELINE:     "95089.25"
+          LIVE_START:        "2026-06-15"
         run: python scripts/update_live.py
 
       - name: Commit & push
