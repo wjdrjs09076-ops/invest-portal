@@ -1,38 +1,38 @@
 {
-  "generated_at": "2026-06-16T23:51:58.950936+00:00",
+  "generated_at": "2026-06-17T13:46:35.818273+00:00",
   "live_start": "2026-06-15",
   "strategy_label": "Alpaca Paper Account (live equity, MA200+VIX regime overlay)",
   "source": "alpaca_account_equity",
   "baseline_equity": 95089.25,
   "summary": {
-    "total_return": -0.007066,
+    "total_return": -0.012573,
     "days": 2,
     "cagr": null,
     "sharpe": null,
-    "mdd": -0.007066,
+    "mdd": -0.012573,
     "last_date": "2026-06-16",
-    "last_equity": 0.992934
+    "last_equity": 0.987427
   },
-  "account_value": 94417.33,
+  "account_value": 94665.12,
   "cash": -1430.77,
   "current_portfolio": {
-    "AESI": 0.05666,
-    "AVNS": 0.153063,
-    "BTSG": 0.081134,
-    "CIEN": 0.054727,
-    "IRDM": 0.053842,
-    "MYRG": 0.056782,
-    "NVRI": 0.057112,
-    "NVT": 0.074759,
-    "REX": 0.069394,
-    "SNDK": 0.06412,
-    "SNEX": 0.059826,
-    "SPHR": 0.060281,
-    "UNIT": 0.100291,
-    "WDC": 0.073161
+    "AESI": 0.056443,
+    "AVNS": 0.152492,
+    "BTSG": 0.079876,
+    "CIEN": 0.054839,
+    "IRDM": 0.053776,
+    "MYRG": 0.057116,
+    "NVRI": 0.057825,
+    "NVT": 0.075779,
+    "REX": 0.069601,
+    "SNDK": 0.063786,
+    "SNEX": 0.057626,
+    "SPHR": 0.059772,
+    "UNIT": 0.101213,
+    "WDC": 0.074973
   },
   "regime_bucket": "risk_on",
-  "stock_exposure": 1.0152,
+  "stock_exposure": 1.0151,
   "daily": [
     {
       "date": "2026-06-15",
@@ -41,16 +41,16 @@
       "drawdown": -0.00034,
       "benchmark": 1.0,
       "regime": "live",
-      "stock_exposure": 1.0152
+      "stock_exposure": 1.0151
     },
     {
       "date": "2026-06-16",
-      "equity": 0.992934,
-      "daily_return": -0.006729,
-      "drawdown": -0.007066,
+      "equity": 0.987427,
+      "daily_return": -0.012238,
+      "drawdown": -0.012573,
       "benchmark": 0.994038,
       "regime": "live",
-      "stock_exposure": 1.0152
+      "stock_exposure": 1.0151
     }
   ]
 }

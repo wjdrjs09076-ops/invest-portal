@@ -68,8 +68,11 @@ def main() -> None:
     pv   = float(acct.portfolio_value)
     pos  = {p.symbol: float(p.market_value) for p in tc.get_all_positions()}
 
-    # 당일(미 동부) 거래일자 — Alpaca 시계 기준
-    today = tc.get_clock().timestamp.strftime("%Y-%m-%d")
+    # 당일(미 동부) 거래일자 + 장 개장여부 — Alpaca 시계 기준
+    clock = tc.get_clock()
+    today = clock.timestamp.strftime("%Y-%m-%d")
+    market_open = bool(clock.is_open)
+    last_equity = float(getattr(acct, "last_equity", 0) or 0)   # 직전 거래일 '공식' 종가
 
     prev = _load_json(PERF_PATH) or {}
     baseline = prev.get("baseline_equity")
@@ -77,11 +80,20 @@ def main() -> None:
         baseline = float(os.environ.get("LIVE_BASELINE", "0") or 0) or equity_now
     baseline = float(baseline)
 
-    # 기존 트랙의 일자별 USD equity 복원 (norm × baseline) + 당일 upsert
+    # 기존 트랙의 일자별 USD equity 복원 (norm × baseline)
     usd_by_date: dict[str, float] = {}
     for d in prev.get("daily", []):
         usd_by_date[d["date"]] = float(d["equity"]) * baseline
-    usd_by_date[today] = equity_now          # 당일 종가 권위값으로 덮어씀(누적 보존)
+
+    # 직전 거래일을 Alpaca 공식 종가(last_equity)로 보정 — 시간외 캡처 오차 self-heal.
+    # (마감 직후 캡처한 equity는 시간외 마크로 공식 4pm 종가와 다를 수 있음)
+    prior_dates = [dd for dd in usd_by_date if dd < today]
+    if last_equity > 0 and prior_dates:
+        usd_by_date[max(prior_dates)] = last_equity
+
+    # 당일 종가는 '장 마감 후'에만 기록(장중 노이즈 방지). 트랙이 비어있으면 최소 당일이라도.
+    if not market_open or not usd_by_date:
+        usd_by_date[today] = equity_now
 
     dates = sorted(usd_by_date)
     start_date, end_date = dates[0], dates[-1]
