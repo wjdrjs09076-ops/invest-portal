@@ -1,38 +1,38 @@
 {
-  "generated_at": "2026-06-17T23:22:20.306319+00:00",
+  "generated_at": "2026-06-18T23:43:40.434253+00:00",
   "live_start": "2026-06-15",
   "strategy_label": "Alpaca Paper Account (live equity, MA200+VIX regime overlay)",
   "source": "alpaca_account_equity",
   "baseline_equity": 95089.25,
   "summary": {
-    "total_return": -0.005786,
-    "days": 3,
+    "total_return": 0.014306,
+    "days": 4,
     "cagr": null,
     "sharpe": null,
     "mdd": -0.012573,
-    "last_date": "2026-06-17",
-    "last_equity": 0.994214
+    "last_date": "2026-06-18",
+    "last_equity": 1.014306
   },
-  "account_value": 94539.1,
+  "account_value": 96449.63,
   "cash": -1430.77,
   "current_portfolio": {
-    "AESI": 0.055619,
-    "AVNS": 0.152315,
-    "BTSG": 0.080656,
-    "CIEN": 0.055977,
-    "IRDM": 0.05636,
-    "MYRG": 0.056364,
-    "NVRI": 0.057997,
-    "NVT": 0.075942,
-    "REX": 0.068654,
-    "SNDK": 0.063942,
-    "SNEX": 0.059539,
-    "SPHR": 0.058014,
-    "UNIT": 0.095502,
-    "WDC": 0.078253
+    "AESI": 0.054924,
+    "AVNS": 0.149718,
+    "BTSG": 0.081645,
+    "CIEN": 0.05334,
+    "IRDM": 0.053399,
+    "MYRG": 0.057369,
+    "NVRI": 0.059104,
+    "NVT": 0.07756,
+    "REX": 0.068181,
+    "SNDK": 0.068497,
+    "SNEX": 0.06096,
+    "SPHR": 0.058724,
+    "UNIT": 0.093289,
+    "WDC": 0.078124
   },
   "regime_bucket": "risk_on",
-  "stock_exposure": 1.0151,
+  "stock_exposure": 1.0148,
   "daily": [
     {
       "date": "2026-06-15",
@@ -41,25 +41,34 @@
       "drawdown": -0.00034,
       "benchmark": 1.0,
       "regime": "live",
-      "stock_exposure": 1.0151
+      "stock_exposure": 1.0148
     },
     {
       "date": "2026-06-16",
       "equity": 0.987427,
-      "daily_return": -0.012238,
+      "daily_return": -0.012237,
       "drawdown": -0.012573,
       "benchmark": 0.994038,
       "regime": "live",
-      "stock_exposure": 1.0151
+      "stock_exposure": 1.0148
     },
     {
       "date": "2026-06-17",
-      "equity": 0.994214,
-      "daily_return": 0.006874,
-      "drawdown": -0.005786,
+      "equity": 0.987678,
+      "daily_return": 0.000254,
+      "drawdown": -0.012322,
       "benchmark": 0.981625,
       "regime": "live",
-      "stock_exposure": 1.0151
+      "stock_exposure": 1.0148
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 1.014306,
+      "daily_return": 0.026961,
+      "drawdown": 0.0,
+      "benchmark": 0.989282,
+      "regime": "live",
+      "stock_exposure": 1.0148
     }
   ]
 }
