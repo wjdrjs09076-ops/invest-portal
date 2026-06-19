@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-06-19T05:03:54.855931+00:00",
+  "generated_at": "2026-06-19T05:06:17.491226+00:00",
   "live_start": "2026-01-02",
   "strategy_label": "Momentum Top-5 (S&P500, 시뮬레이션 — 점수 상위 5종목 동일가중, 3일 확정)",
   "source": "notional_simulation_ci",
   "note": "노셔널 시뮬레이션(가상, 모멘텀 전용·yfinance). Alpaca 실계좌 아님. 매일 자동 재시뮬.",
   "summary": {
-    "total_return": 1.619987,
+    "total_return": 1.45721,
     "days": 116,
     "cagr": null,
     "sharpe": null,
     "mdd": -0.188851,
     "last_date": "2026-06-18",
-    "last_equity": 2.619987
+    "last_equity": 2.45721
   },
   "current_portfolio": {
     "MU": 0.2,
@@ -367,7 +367,7 @@
     },
     {
       "date": "2026-02-27",
-      "equity": 1.375744,
+      "equity": 1.375745,
       "daily_return": -0.00489,
       "drawdown": -0.023534,
       "benchmark": 1.004128,
@@ -646,7 +646,7 @@
     },
     {
       "date": "2026-04-14",
-      "equity": 1.659524,
+      "equity": 1.659523,
       "daily_return": -0.002992,
       "drawdown": -0.002992,
       "benchmark": 1.019302,
@@ -1060,10 +1060,10 @@
     },
     {
       "date": "2026-06-18",
-      "equity": 2.619987,
-      "daily_return": 0.066245,
-      "drawdown": 0.0,
-      "benchmark": 1.09886,
+      "equity": 2.45721,
+      "daily_return": 0.0,
+      "drawdown": -0.016906,
+      "benchmark": 1.087553,
       "regime": "sim",
       "stock_exposure": 1.0
     }
