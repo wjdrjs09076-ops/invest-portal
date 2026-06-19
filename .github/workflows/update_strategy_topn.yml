@@ -1,0 +1,43 @@
+name: Update Top-5 strategy (notional)
+
+# 모멘텀 Top-5 노셔널 시뮬레이션(/top5)을 매일 자동 갱신.
+# 자급(yfinance + repo의 sp500_current_wiki.json)이라 Sharadar 캐시·Alpaca 불필요.
+on:
+  workflow_dispatch:
+  schedule:
+    # 22:30 UTC = 미 장마감 후 (update_live 22:00과 30분 오프셋 — 커밋 충돌 방지)
+    - cron: "30 22 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portal-data-commit
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install yfinance pandas numpy
+
+      - name: Build top-5 strategy track
+        run: python scripts/build_strategy_topn_ci.py
+
+      - name: Commit & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          git add public/data/strategy_topn.json
+          git diff --cached --quiet || git commit -m "data: top5 strategy update [$(date -u '+%Y-%m-%d')]"
+          git push
