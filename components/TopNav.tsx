@@ -24,6 +24,12 @@ export default function TopNav() {
           >
             🔴 Live
           </Link>
+          <Link
+            href="/top5"
+            className="rounded-full bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700"
+          >
+            ⚡ Top-5 Sim
+          </Link>
         </nav>
       </div>
     </header>
