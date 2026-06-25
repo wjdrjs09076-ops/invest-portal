@@ -86,6 +86,12 @@ def main():
     positions = {p.symbol: float(p.qty) for p in tc.get_all_positions()}
     print(f"계좌가치 ${pv:,.0f} | 현재보유 {list(positions)}")
 
+    # ★ 멤버십 변동 없으면 리밸런싱 안 함(가중 드리프트 재맞춤 churn 방지 = 승자 안 깎음).
+    # 전략 취지 = top-5 '멤버십'이 바뀔 때만 거래. 비중은 종목 교체 시에만 1/N 재설정.
+    if set(positions.keys()) == set(tradable):
+        print("리밸런싱 불필요 — 보유 = 타깃(멤버십 동일). 가중 드리프트 방치(승자 유지).")
+        return
+
     all_t = sorted(set(tradable) | set(positions))
     prices = get_prices(dc, all_t)
     # 매수 타깃 가격 누락 → 부분청산 방지 위해 중단
