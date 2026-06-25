@@ -1,0 +1,36 @@
+name: Top-5 paper rebalance
+
+# Top-5 전향 실험 페이퍼 계좌를 매 거래일 개장 직후 리밸런싱 (사전등록 규칙 동결).
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run: {description: "DRY_RUN", required: false, default: "true"}
+  schedule:
+    - cron: "35 14 * * 1-5"   # 09:35 ET (개장 후)
+
+permissions:
+  contents: write
+concurrency: {group: top5-paper, cancel-in-progress: false}
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install alpaca-py
+      - name: Rebalance
+        env:
+          ALPACA_TOP5_API_KEY:    ${{ secrets.ALPACA_TOP5_API_KEY }}
+          ALPACA_TOP5_SECRET_KEY: ${{ secrets.ALPACA_TOP5_SECRET_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: python scripts/top5_paper_rebalance.py
+      - name: Commit trade log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase --autostash origin main || true
+          git add public/data/top5_paper_trades.json
+          git diff --cached --quiet || git commit -m "data: top5 paper trades [$(date -u '+%Y-%m-%d')]"
+          git push || true
