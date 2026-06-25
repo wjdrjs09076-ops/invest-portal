@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-06-25T23:57:37.725684+00:00",
+  "live_start": "2026-06-25",
+  "strategy_label": "Top-5 전향 검증 (Alpaca 페이퍼 실계좌 · 브로커 검증)",
+  "source": "alpaca_top5_paper",
+  "baseline_equity": 100000.0,
+  "summary": {
+    "total_return": -0.017456,
+    "days": 1,
+    "cagr": null,
+    "sharpe": null,
+    "mdd": -0.017456,
+    "last_date": "2026-06-25",
+    "last_equity": 0.982544
+  },
+  "account_value": 98254.4,
+  "cash": -2285.75,
+  "current_portfolio": {
+    "AMD": 0.199396,
+    "FIX": 0.226145,
+    "FTNT": 0.199787,
+    "STX": 0.19821,
+    "TXN": 0.199725
+  },
+  "regime_bucket": "live",
+  "stock_exposure": 1.0233,
+  "daily": [
+    {
+      "date": "2026-06-25",
+      "equity": 0.982544,
+      "daily_return": -0.017456,
+      "drawdown": -0.017456,
+      "benchmark": 1.0,
+      "regime": "live",
+      "stock_exposure": 1.0233
+    }
+  ]
+}
