@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-06-30T23:49:06.193096+00:00",
+  "generated_at": "2026-07-01T23:54:30.330977+00:00",
   "live_start": "2026-06-25",
   "strategy_label": "Top-5 전향 검증 (Alpaca 페이퍼 실계좌 · 브로커 검증)",
   "source": "alpaca_top5_paper",
   "baseline_equity": 100000.0,
   "summary": {
-    "total_return": 0.00293,
-    "days": 4,
+    "total_return": -0.033417,
+    "days": 5,
     "cagr": null,
     "sharpe": null,
     "mdd": -0.069055,
-    "last_date": "2026-06-30",
-    "last_equity": 1.00293
+    "last_date": "2026-07-01",
+    "last_equity": 0.966583
   },
-  "account_value": 100293.03,
+  "account_value": 96658.26,
   "cash": -805.35,
   "current_portfolio": {
-    "AMD": 0.207763,
-    "FTNT": 0.197996,
-    "LRCX": 0.22047,
-    "STX": 0.192596,
-    "TXN": 0.189206
+    "AMD": 0.202741,
+    "FTNT": 0.213432,
+    "LRCX": 0.208256,
+    "STX": 0.188358,
+    "TXN": 0.195545
   },
   "regime_bucket": "live",
-  "stock_exposure": 1.008,
+  "stock_exposure": 1.0083,
   "daily": [
     {
       "date": "2026-06-25",
@@ -32,7 +32,7 @@
       "drawdown": -0.017706,
       "benchmark": 1.0,
       "regime": "live",
-      "stock_exposure": 1.008
+      "stock_exposure": 1.0083
     },
     {
       "date": "2026-06-26",
@@ -41,7 +41,7 @@
       "drawdown": -0.069055,
       "benchmark": 0.992769,
       "regime": "live",
-      "stock_exposure": 1.008
+      "stock_exposure": 1.0083
     },
     {
       "date": "2026-06-29",
@@ -50,16 +50,25 @@
       "drawdown": -0.027368,
       "benchmark": 1.009124,
       "regime": "live",
-      "stock_exposure": 1.008
+      "stock_exposure": 1.0083
     },
     {
       "date": "2026-06-30",
-      "equity": 1.00293,
-      "daily_return": 0.031151,
+      "equity": 1.004007,
+      "daily_return": 0.032258,
       "drawdown": 0.0,
       "benchmark": 1.016982,
       "regime": "live",
-      "stock_exposure": 1.008
+      "stock_exposure": 1.0083
+    },
+    {
+      "date": "2026-07-01",
+      "equity": 0.966583,
+      "daily_return": -0.037275,
+      "drawdown": -0.037275,
+      "benchmark": 1.015607,
+      "regime": "live",
+      "stock_exposure": 1.0083
     }
   ]
 }
