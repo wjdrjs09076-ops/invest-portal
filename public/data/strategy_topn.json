@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-02T23:35:54.943160+00:00",
+  "generated_at": "2026-07-03T23:34:05.474717+00:00",
   "live_start": "2026-01-02",
   "strategy_label": "Top-5 (S&P500 프로덕션 점수 — 모멘텀+퀄리티+섹터+리스크, 동일가중, 3일 확정)",
   "source": "notional_simulation_ci",
@@ -100,7 +100,7 @@
       "equity": 1.06978,
       "daily_return": -0.005841,
       "drawdown": -0.005841,
-      "benchmark": 1.010524,
+      "benchmark": 1.010525,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -208,7 +208,7 @@
       "equity": 1.160436,
       "daily_return": 0.021269,
       "drawdown": 0.0,
-      "benchmark": 1.017916,
+      "benchmark": 1.017917,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -223,7 +223,7 @@
     },
     {
       "date": "2026-02-04",
-      "equity": 1.136889,
+      "equity": 1.13689,
       "daily_return": -0.036712,
       "drawdown": -0.036712,
       "benchmark": 1.004421,
@@ -241,7 +241,7 @@
     },
     {
       "date": "2026-02-06",
-      "equity": 1.15621,
+      "equity": 1.156211,
       "daily_return": 0.016073,
       "drawdown": -0.020341,
       "benchmark": 1.010905,
@@ -316,7 +316,7 @@
       "equity": 1.08635,
       "daily_return": -0.016985,
       "drawdown": -0.079534,
-      "benchmark": 1.001918,
+      "benchmark": 1.001917,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -396,7 +396,7 @@
       "date": "2026-03-04",
       "equity": 1.032646,
       "daily_return": 0.012638,
-      "drawdown": -0.125037,
+      "drawdown": -0.125038,
       "benchmark": 1.002869,
       "regime": "sim",
       "stock_exposure": 1.0
@@ -406,7 +406,7 @@
       "equity": 1.011624,
       "daily_return": -0.020358,
       "drawdown": -0.14285,
-      "benchmark": 0.997277,
+      "benchmark": 0.997278,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -540,7 +540,7 @@
       "date": "2026-03-26",
       "equity": 0.985945,
       "daily_return": -0.062375,
-      "drawdown": -0.164607,
+      "drawdown": -0.164608,
       "benchmark": 0.946839,
       "regime": "sim",
       "stock_exposure": 1.0
