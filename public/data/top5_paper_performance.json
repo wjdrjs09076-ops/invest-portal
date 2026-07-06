@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-07-03T23:42:26.044253+00:00",
+  "generated_at": "2026-07-06T23:43:52.070751+00:00",
   "live_start": "2026-06-25",
   "strategy_label": "Top-5 전향 검증 (Alpaca 페이퍼 실계좌 · 브로커 검증)",
   "source": "alpaca_top5_paper",
   "baseline_equity": 100000.0,
   "summary": {
-    "total_return": -0.089254,
-    "days": 7,
+    "total_return": -0.057402,
+    "days": 8,
     "cagr": null,
     "sharpe": null,
-    "mdd": -0.092888,
-    "last_date": "2026-07-03",
-    "last_equity": 0.910746
+    "mdd": -0.092889,
+    "last_date": "2026-07-06",
+    "last_equity": 0.942598
   },
-  "account_value": 91074.65,
+  "account_value": 94259.79,
   "cash": -805.35,
   "current_portfolio": {
-    "AMD": 0.204684,
-    "FTNT": 0.221316,
-    "LRCX": 0.196783,
-    "STX": 0.180107,
-    "TXN": 0.205953
+    "AMD": 0.210096,
+    "FTNT": 0.222185,
+    "LRCX": 0.188575,
+    "STX": 0.181626,
+    "TXN": 0.206062
   },
   "regime_bucket": "live",
-  "stock_exposure": 1.0088,
+  "stock_exposure": 1.0085,
   "daily": [
     {
       "date": "2026-06-25",
@@ -32,7 +32,7 @@
       "drawdown": -0.017706,
       "benchmark": 1.0,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
     },
     {
       "date": "2026-06-26",
@@ -41,7 +41,7 @@
       "drawdown": -0.069055,
       "benchmark": 0.992769,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
     },
     {
       "date": "2026-06-29",
@@ -50,7 +50,7 @@
       "drawdown": -0.027368,
       "benchmark": 1.009124,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
     },
     {
       "date": "2026-06-30",
@@ -59,7 +59,7 @@
       "drawdown": 0.0,
       "benchmark": 1.016982,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
     },
     {
       "date": "2026-07-01",
@@ -68,25 +68,34 @@
       "drawdown": -0.038542,
       "benchmark": 1.015607,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
     },
     {
       "date": "2026-07-02",
       "equity": 0.910746,
-      "daily_return": -0.056525,
-      "drawdown": -0.092888,
+      "daily_return": -0.056526,
+      "drawdown": -0.092889,
       "benchmark": 1.014272,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
     },
     {
       "date": "2026-07-03",
       "equity": 0.910746,
-      "daily_return": 0.0,
+      "daily_return": 1e-06,
       "drawdown": -0.092888,
       "benchmark": 1.014272,
       "regime": "live",
-      "stock_exposure": 1.0088
+      "stock_exposure": 1.0085
+    },
+    {
+      "date": "2026-07-06",
+      "equity": 0.942598,
+      "daily_return": 0.034973,
+      "drawdown": -0.061164,
+      "benchmark": 1.023124,
+      "regime": "live",
+      "stock_exposure": 1.0085
     }
   ]
 }
