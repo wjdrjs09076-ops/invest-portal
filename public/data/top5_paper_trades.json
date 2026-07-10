@@ -155,5 +155,62 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-07-10",
+    "timestamp": "2026-07-10T16:38:12.396480+00:00",
+    "target": [
+      "AMD",
+      "FTNT",
+      "LRCX",
+      "NTAP",
+      "TXN"
+    ],
+    "portfolio_value": 95794.02,
+    "orders": [
+      {
+        "symbol": "STX",
+        "side": "sell",
+        "qty": 20,
+        "order_id": "d157166b-07a1-4653-aef9-a2b0dc226893",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "FTNT",
+        "side": "sell",
+        "qty": 10,
+        "order_id": "e23a16e3-5b24-4de6-b0ca-243f41c3d9e5",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "TXN",
+        "side": "sell",
+        "qty": 3,
+        "order_id": "891e9b09-d1d6-42a2-9530-9df000c37e15",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "AMD",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "3a536c78-4328-4a67-9f22-12391f690e67",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "NTAP",
+        "side": "buy",
+        "qty": 111,
+        "order_id": "88cf5210-5c69-4eed-b6b2-f62ed33d606c",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "LRCX",
+        "side": "buy",
+        "qty": 4,
+        "order_id": "4baa318d-f270-403e-a8d6-8e849a1ef87a",
+        "status": "OrderStatus.PENDING_NEW"
+      }
+    ],
+    "dry_run": false
   }
 ]
