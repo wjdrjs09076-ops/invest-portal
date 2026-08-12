@@ -725,5 +725,62 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-08-12",
+    "timestamp": "2026-08-12T15:31:39.906450+00:00",
+    "target": [
+      "ANET",
+      "FTNT",
+      "NTAP",
+      "STT",
+      "WST"
+    ],
+    "portfolio_value": 87835.64,
+    "orders": [
+      {
+        "symbol": "UNH",
+        "side": "sell",
+        "qty": 42,
+        "order_id": "742adbea-7d5a-48d0-827d-5bff5a145958",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "ANET",
+        "side": "sell",
+        "qty": 5,
+        "order_id": "6df4b234-62e2-4972-87d7-47f221ac121e",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "FTNT",
+        "side": "sell",
+        "qty": 3,
+        "order_id": "1060f78f-ccf1-4c64-8a81-2029157e492e",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "WST",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "badfbfa5-cb15-4b2f-bcf4-4cffcf0be7b7",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "STT",
+        "side": "buy",
+        "qty": 93,
+        "order_id": "d68010cb-37a2-4ea4-b98f-4e52113d8fad",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "NTAP",
+        "side": "buy",
+        "qty": 1,
+        "order_id": "6bdc0c7c-8e0d-4759-9c7d-620376058bcc",
+        "status": "OrderStatus.PENDING_NEW"
+      }
+    ],
+    "dry_run": false
   }
 ]
