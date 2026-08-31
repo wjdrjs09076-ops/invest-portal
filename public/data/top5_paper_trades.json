@@ -1017,5 +1017,62 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-08-31",
+    "timestamp": "2026-08-31T20:20:47.300194+00:00",
+    "target": [
+      "FTNT",
+      "INCY",
+      "MPC",
+      "MRK",
+      "NTAP"
+    ],
+    "portfolio_value": 85216.04,
+    "orders": [
+      {
+        "symbol": "PSX",
+        "side": "sell",
+        "qty": 70,
+        "order_id": "f5595bca-751d-4050-a155-7fc3a05323bc",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "FTNT",
+        "side": "sell",
+        "qty": 2,
+        "order_id": "21da0683-c7af-4bc7-a292-d0da802e13a4",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "MPC",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "5ab80901-a0d0-4904-8a2f-ae5beb6a4d3a",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "MRK",
+        "side": "buy",
+        "qty": 115,
+        "order_id": "ae81fb7f-8a1d-45e9-8569-bcdf96276b2c",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "NTAP",
+        "side": "buy",
+        "qty": 1,
+        "order_id": "6770331b-6c7d-4add-8565-5db4165d8dfe",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "INCY",
+        "side": "buy",
+        "qty": 1,
+        "order_id": "3f33fc5e-9868-4e42-8014-404f030b1fa2",
+        "status": "OrderStatus.ACCEPTED"
+      }
+    ],
+    "dry_run": false
   }
 ]
