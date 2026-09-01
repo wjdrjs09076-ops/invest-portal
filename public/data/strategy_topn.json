@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-08-29T03:47:50.602712+00:00",
+  "generated_at": "2026-09-01T01:21:46.009683+00:00",
   "live_start": "2026-01-02",
   "strategy_label": "Top-5 (S&P500 프로덕션 점수 — 모멘텀+퀄리티+섹터+리스크, 동일가중, 3일 확정)",
   "source": "notional_simulation_ci",
   "note": "노셔널 시뮬레이션(가상). 프로덕션 점수 구성 미러(quality는 현재 스냅샷→백필 경미 look-ahead). Alpaca 실계좌 아님.",
   "summary": {
-    "total_return": 0.52036,
-    "days": 165,
+    "total_return": 0.525648,
+    "days": 166,
     "cagr": null,
     "sharpe": null,
     "mdd": -0.214917,
-    "last_date": "2026-08-28",
-    "last_equity": 1.52036
+    "last_date": "2026-08-31",
+    "last_equity": 1.525648
   },
   "current_portfolio": {
     "FTNT": 0.2,
@@ -1505,6 +1505,15 @@
       "daily_return": -0.010509,
       "drawdown": -0.143999,
       "benchmark": 1.132132,
+      "regime": "sim",
+      "stock_exposure": 1.0
+    },
+    {
+      "date": "2026-08-31",
+      "equity": 1.525648,
+      "daily_return": 0.00388,
+      "drawdown": -0.141022,
+      "benchmark": 1.128747,
       "regime": "sim",
       "stock_exposure": 1.0
     }
