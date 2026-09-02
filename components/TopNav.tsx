@@ -19,12 +19,6 @@ export default function TopNav() {
             Strategy Lab
           </Link>
           <Link
-            href="/live"
-            className="rounded-full bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
-          >
-            🔴 Live
-          </Link>
-          <Link
             href="/top5"
             className="rounded-full bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700"
           >
