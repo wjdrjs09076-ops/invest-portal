@@ -83,7 +83,7 @@ export default function Top5Page() {
           {summary.last_date ? ` · 최근 ${summary.last_date}` : ""}
         </p>
         <p className="text-gray-400 mt-1 text-xs">
-          /live(복잡 14종목 Alpaca 실계좌)와 별개 전략입니다. 매일 마감 후 2026-01-01부터 재시뮬.
+          14종목 Alpaca 실계좌 전략과 별개입니다. 매일 마감 후 2026-01-01부터 재시뮬.
         </p>
       </div>
 
