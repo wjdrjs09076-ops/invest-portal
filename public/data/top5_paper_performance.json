@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-09-03T00:39:35.576212+00:00",
+  "generated_at": "2026-09-04T00:24:35.230213+00:00",
   "live_start": "2026-06-25",
   "strategy_label": "Top-5 전향 검증 (Alpaca 페이퍼 실계좌 · 브로커 검증)",
   "source": "alpaca_top5_paper",
   "baseline_equity": 100000.0,
   "summary": {
-    "total_return": -0.168279,
-    "days": 49,
+    "total_return": -0.146912,
+    "days": 50,
     "cagr": null,
     "sharpe": null,
     "mdd": -0.178817,
-    "last_date": "2026-09-02",
-    "last_equity": 0.831721
+    "last_date": "2026-09-03",
+    "last_equity": 0.853088
   },
-  "account_value": 83172.12,
+  "account_value": 85308.77,
   "cash": -22.38,
   "current_portfolio": {
-    "FTNT": 0.186748,
-    "INCY": 0.209873,
-    "MPC": 0.214591,
-    "MRK": 0.209337,
-    "NTAP": 0.17972
+    "FTNT": 0.183334,
+    "INCY": 0.204856,
+    "MPC": 0.20906,
+    "MRK": 0.205361,
+    "NTAP": 0.197651
   },
   "regime_bucket": "live",
   "stock_exposure": 1.0003,
@@ -452,16 +452,25 @@
       "date": "2026-09-01",
       "equity": 0.846834,
       "daily_return": -0.004295,
-      "drawdown": -0.156545,
+      "drawdown": -0.156546,
       "benchmark": 1.037423,
       "regime": "live",
       "stock_exposure": 1.0003
     },
     {
       "date": "2026-09-02",
-      "equity": 0.831721,
-      "daily_return": -0.017847,
-      "drawdown": -0.171598,
+      "equity": 0.846432,
+      "daily_return": -0.000475,
+      "drawdown": -0.156946,
+      "benchmark": 1.042026,
+      "regime": "live",
+      "stock_exposure": 1.0003
+    },
+    {
+      "date": "2026-09-03",
+      "equity": 0.853088,
+      "daily_return": 0.007864,
+      "drawdown": -0.150317,
       "benchmark": NaN,
       "regime": "live",
       "stock_exposure": 1.0003
