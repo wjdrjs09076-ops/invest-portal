@@ -1,38 +1,38 @@
 {
-  "generated_at": "2026-09-22T23:58:59.608043+00:00",
+  "generated_at": "2026-09-24T00:13:18.918909+00:00",
   "live_start": "2026-06-15",
   "strategy_label": "Alpaca Paper Account (live equity, MA200+VIX regime overlay)",
   "source": "alpaca_account_equity",
   "baseline_equity": 95089.25,
   "summary": {
-    "total_return": -0.138778,
-    "days": 71,
-    "cagr": -0.411557,
-    "sharpe": -0.645,
+    "total_return": -0.155568,
+    "days": 72,
+    "cagr": -0.44668,
+    "sharpe": -0.7555,
     "mdd": -0.336483,
-    "last_date": "2026-09-22",
-    "last_equity": 0.861222
+    "last_date": "2026-09-23",
+    "last_equity": 0.844432
   },
-  "account_value": 81892.92,
+  "account_value": 80296.44,
   "cash": -1430.77,
   "current_portfolio": {
-    "AESI": 0.047916,
-    "AVNS": 0.176685,
-    "BTSG": 0.082132,
-    "CIEN": 0.054156,
-    "IRDM": 0.069506,
-    "MYRG": 0.042355,
-    "NVRI": 0.065151,
-    "NVT": 0.083628,
-    "REX": 0.081051,
-    "SNDK": 0.069548,
-    "SNEX": 0.035895,
-    "SPHR": 0.062383,
-    "UNIT": 0.090333,
-    "WDC": 0.056733
+    "AESI": 0.046914,
+    "AVNS": 0.180197,
+    "BTSG": 0.083089,
+    "CIEN": 0.053115,
+    "IRDM": 0.070232,
+    "MYRG": 0.043907,
+    "NVRI": 0.062672,
+    "NVT": 0.084631,
+    "REX": 0.082214,
+    "SNDK": 0.067677,
+    "SNEX": 0.035453,
+    "SPHR": 0.060925,
+    "UNIT": 0.088182,
+    "WDC": 0.058609
   },
   "regime_bucket": "risk_on",
-  "stock_exposure": 1.0175,
+  "stock_exposure": 1.0178,
   "daily": [
     {
       "date": "2026-06-15",
@@ -41,7 +41,7 @@
       "drawdown": -0.00034,
       "benchmark": 1.0,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-16",
@@ -50,7 +50,7 @@
       "drawdown": -0.012573,
       "benchmark": 0.994038,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-17",
@@ -59,7 +59,7 @@
       "drawdown": -0.012322,
       "benchmark": 0.981625,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-18",
@@ -68,7 +68,7 @@
       "drawdown": 0.0,
       "benchmark": 0.991831,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-19",
@@ -77,7 +77,7 @@
       "drawdown": 0.0,
       "benchmark": 0.991831,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-22",
@@ -86,7 +86,7 @@
       "drawdown": 0.0,
       "benchmark": 0.98871,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-23",
@@ -95,7 +95,7 @@
       "drawdown": -0.021948,
       "benchmark": 0.974352,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-24",
@@ -104,7 +104,7 @@
       "drawdown": -0.033113,
       "benchmark": 0.9739,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-25",
@@ -113,7 +113,7 @@
       "drawdown": -0.004678,
       "benchmark": 0.975308,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-26",
@@ -122,7 +122,7 @@
       "drawdown": -0.020184,
       "benchmark": 0.968255,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-29",
@@ -131,7 +131,7 @@
       "drawdown": -0.003857,
       "benchmark": 0.984207,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-06-30",
@@ -140,7 +140,7 @@
       "drawdown": 0.0,
       "benchmark": 0.991871,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-01",
@@ -149,7 +149,7 @@
       "drawdown": -0.024966,
       "benchmark": 0.990529,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-02",
@@ -158,7 +158,7 @@
       "drawdown": -0.066342,
       "benchmark": 0.989228,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-03",
@@ -167,7 +167,7 @@
       "drawdown": -0.066342,
       "benchmark": 0.989228,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-06",
@@ -176,7 +176,7 @@
       "drawdown": -0.058916,
       "benchmark": 0.997861,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-07",
@@ -185,7 +185,7 @@
       "drawdown": -0.07676,
       "benchmark": 0.993119,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-08",
@@ -194,7 +194,7 @@
       "drawdown": -0.066526,
       "benchmark": 0.990051,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-09",
@@ -203,7 +203,7 @@
       "drawdown": -0.050028,
       "benchmark": 0.998432,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-10",
@@ -212,7 +212,7 @@
       "drawdown": -0.052975,
       "benchmark": 1.002736,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-13",
@@ -221,7 +221,7 @@
       "drawdown": -0.071669,
       "benchmark": 0.995059,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-14",
@@ -230,7 +230,7 @@
       "drawdown": -0.070201,
       "benchmark": 0.998592,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-15",
@@ -239,7 +239,7 @@
       "drawdown": -0.084068,
       "benchmark": 1.00255,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-16",
@@ -248,7 +248,7 @@
       "drawdown": -0.112754,
       "benchmark": 0.997117,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-17",
@@ -257,7 +257,7 @@
       "drawdown": -0.110584,
       "benchmark": 0.987249,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-20",
@@ -266,7 +266,7 @@
       "drawdown": -0.129916,
       "benchmark": 0.985655,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-21",
@@ -275,7 +275,7 @@
       "drawdown": -0.100257,
       "benchmark": 0.993876,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-22",
@@ -284,7 +284,7 @@
       "drawdown": -0.099803,
       "benchmark": 0.992721,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-23",
@@ -293,7 +293,7 @@
       "drawdown": -0.10967,
       "benchmark": 0.980461,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-24",
@@ -302,7 +302,7 @@
       "drawdown": -0.132964,
       "benchmark": 0.981458,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-27",
@@ -311,7 +311,7 @@
       "drawdown": -0.14669,
       "benchmark": 0.98167,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-28",
@@ -320,7 +320,7 @@
       "drawdown": -0.17155,
       "benchmark": 0.984021,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-29",
@@ -329,7 +329,7 @@
       "drawdown": -0.17155,
       "benchmark": 0.968879,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-30",
@@ -338,7 +338,7 @@
       "drawdown": -0.157932,
       "benchmark": 0.985123,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-07-31",
@@ -347,7 +347,7 @@
       "drawdown": -0.168608,
       "benchmark": 0.992216,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-03",
@@ -356,7 +356,7 @@
       "drawdown": -0.157518,
       "benchmark": 1.006348,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-04",
@@ -365,7 +365,7 @@
       "drawdown": -0.131905,
       "benchmark": 1.024492,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-05",
@@ -374,7 +374,7 @@
       "drawdown": -0.144989,
       "benchmark": 1.022446,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-06",
@@ -383,7 +383,7 @@
       "drawdown": -0.166614,
       "benchmark": 1.020813,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-07",
@@ -392,7 +392,7 @@
       "drawdown": -0.163185,
       "benchmark": 1.027055,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-10",
@@ -401,7 +401,7 @@
       "drawdown": -0.167479,
       "benchmark": 1.02675,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-11",
@@ -410,7 +410,7 @@
       "drawdown": -0.172981,
       "benchmark": 1.023469,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-12",
@@ -419,7 +419,7 @@
       "drawdown": -0.14972,
       "benchmark": 1.026032,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-13",
@@ -428,7 +428,7 @@
       "drawdown": -0.139755,
       "benchmark": 1.033192,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-14",
@@ -437,7 +437,7 @@
       "drawdown": -0.128302,
       "benchmark": 1.031146,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-17",
@@ -446,7 +446,7 @@
       "drawdown": -0.114001,
       "benchmark": 1.026272,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-18",
@@ -455,7 +455,7 @@
       "drawdown": -0.294106,
       "benchmark": 1.019338,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-19",
@@ -464,7 +464,7 @@
       "drawdown": -0.298992,
       "benchmark": 1.021477,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-20",
@@ -473,7 +473,7 @@
       "drawdown": -0.303641,
       "benchmark": 1.012896,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-21",
@@ -482,7 +482,7 @@
       "drawdown": -0.30538,
       "benchmark": 1.01704,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-24",
@@ -491,7 +491,7 @@
       "drawdown": -0.321438,
       "benchmark": 1.014052,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-25",
@@ -500,7 +500,7 @@
       "drawdown": -0.319115,
       "benchmark": 1.017293,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-26",
@@ -509,7 +509,7 @@
       "drawdown": -0.308031,
       "benchmark": 1.017519,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-28",
@@ -518,7 +518,7 @@
       "drawdown": -0.322514,
       "benchmark": 1.021862,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-08-31",
@@ -527,7 +527,7 @@
       "drawdown": -0.322619,
       "benchmark": 1.018807,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-01",
@@ -536,7 +536,7 @@
       "drawdown": -0.331246,
       "benchmark": 1.011807,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-02",
@@ -545,7 +545,7 @@
       "drawdown": -0.322574,
       "benchmark": 1.016297,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-03",
@@ -554,7 +554,7 @@
       "drawdown": -0.320009,
       "benchmark": 1.026936,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-04",
@@ -563,7 +563,7 @@
       "drawdown": -0.310398,
       "benchmark": 1.022978,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-07",
@@ -572,7 +572,7 @@
       "drawdown": -0.310398,
       "benchmark": 1.022978,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-08",
@@ -581,7 +581,7 @@
       "drawdown": -0.295846,
       "benchmark": 1.017359,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-09",
@@ -590,7 +590,7 @@
       "drawdown": -0.30037,
       "benchmark": 1.012631,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-10",
@@ -599,7 +599,7 @@
       "drawdown": -0.31694,
       "benchmark": 1.006561,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-11",
@@ -608,7 +608,7 @@
       "drawdown": -0.310147,
       "benchmark": 1.015141,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-14",
@@ -617,7 +617,7 @@
       "drawdown": -0.334046,
       "benchmark": 1.010612,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-15",
@@ -626,7 +626,7 @@
       "drawdown": -0.334341,
       "benchmark": 1.005976,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-16",
@@ -635,7 +635,7 @@
       "drawdown": -0.336483,
       "benchmark": 1.00154,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-17",
@@ -644,7 +644,7 @@
       "drawdown": -0.332745,
       "benchmark": 1.012896,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-18",
@@ -653,7 +653,7 @@
       "drawdown": -0.322131,
       "benchmark": 1.0142,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-21",
@@ -662,16 +662,25 @@
       "drawdown": -0.318252,
       "benchmark": 1.029925,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
     },
     {
       "date": "2026-09-22",
-      "equity": 0.861222,
-      "daily_return": 0.22816,
-      "drawdown": -0.162704,
+      "equity": 0.707514,
+      "daily_return": 0.008962,
+      "drawdown": -0.312142,
       "benchmark": 1.029765,
       "regime": "live",
-      "stock_exposure": 1.0175
+      "stock_exposure": 1.0178
+    },
+    {
+      "date": "2026-09-23",
+      "equity": 0.844432,
+      "daily_return": 0.193521,
+      "drawdown": -0.179027,
+      "benchmark": NaN,
+      "regime": "live",
+      "stock_exposure": 1.0178
     }
   ]
 }
