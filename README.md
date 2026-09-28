@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Invest Portal
 
-## Getting Started
+**주식 팩터 점수와 검증 결과를 읽고 비교할 수 있게 만든 리서치 포털입니다.** 데이터 계산은 별도 [invest-data](https://github.com/wjdrjs09076-ops/invest-data)에서 수행하고, 이 저장소는 스냅샷 표시와 전향 페이퍼 실험 기록을 담당합니다.
 
-First, run the development server:
+**[포털 열기](https://invest-portal-rust.vercel.app)** · [Top-5 전향 검증 사전등록](FORWARD_TEST_TOP5.md)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 무엇을 볼 수 있나
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- 종목 검색, 재무·뉴스·신호 화면과 시장 요약
+- 과거 백테스트 곡선, 팩터 분해, 점수 분위별 선행수익·Top-N 민감도·섹터 노출 화면
+- 매일 갱신하도록 설정된 전략 후보 스냅샷과 Alpaca **페이퍼 계좌** 관측 기록
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+화면의 상당수는 `public/data/*.json`을 읽습니다. `app/api/`는 시세, 재무, 뉴스, 추천 등 화면용 API 경로를 제공합니다. 입력 스냅샷의 산출 방식과 시점 통제는 `invest-data`의 코드와 함께 확인해야 합니다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 결과를 읽는 기준
 
-## Learn More
+| 표시 | 의미 |
+| --- | --- |
+| 과거 백테스트 | 과거 데이터와 가정으로 계산한 시뮬레이션. 실현 수익이 아님 |
+| 전략 후보·Top-N 스냅샷 | 특정 시점의 점수와 가상 선택. 독립적인 전향 성과가 아님 |
+| Top-5 페이퍼 기록 | `FORWARD_TEST_TOP5.md`의 규칙을 2026-06-25에 고정한 뒤 수집하는 모의 계좌 표본 |
 
-To learn more about Next.js, take a look at the following resources:
+Top-5 가설의 판정은 사전등록 문서에 적힌 최소 관측 기간과 요인 회귀 기준을 충족할 때까지 **보류**입니다. 페이퍼 계좌의 수익·체결·비용은 실자본 운용 성과가 아닙니다. 과거 자료와 전향 자료를 합쳐 하나의 OOS 수익률로 제시하지 않습니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 자동화와 현재 범위
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`.github/workflows/`에는 전략 스냅샷, 페이퍼 리밸런싱, 계좌 기준 성과 갱신이 설정돼 있습니다. 실행 성공 기록은 Actions에서 확인할 수 있지만, 예약 시각에 항상 정확히 실행된다는 보장은 없습니다. 외부 API, 비공개 환경변수, `public/data/`의 생성 파일이 있어야 전체 화면이 갱신됩니다.
 
-## Deploy on Vercel
+## 로컬 실행
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Node.js 환경에서 `npm ci` 후 `npm run dev`를 실행하고 `http://localhost:3000`을 엽니다. `npm run build`로 프론트엔드 빌드를 확인할 수 있습니다. 화면의 기본 데이터는 저장소에 있는 JSON을 사용하며, 일부 API 경로는 외부 서비스 접근이 필요합니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
