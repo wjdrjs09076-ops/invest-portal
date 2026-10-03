@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-02T01:45:38.851994+00:00",
+  "generated_at": "2026-10-03T01:17:24.830339+00:00",
   "live_start": "2026-01-02",
   "strategy_label": "Top-5 (S&P500 프로덕션 점수 — 모멘텀+퀄리티+섹터+리스크, 동일가중, 3일 확정)",
   "source": "notional_simulation_ci",
@@ -100,7 +100,7 @@
       "equity": 1.06978,
       "daily_return": -0.005841,
       "drawdown": -0.005841,
-      "benchmark": 1.010524,
+      "benchmark": 1.010525,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -145,7 +145,7 @@
       "equity": 1.081147,
       "daily_return": -0.007942,
       "drawdown": -0.007942,
-      "benchmark": 1.008504,
+      "benchmark": 1.008505,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -208,7 +208,7 @@
       "equity": 1.160436,
       "daily_return": 0.021269,
       "drawdown": 0.0,
-      "benchmark": 1.017916,
+      "benchmark": 1.017917,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -223,7 +223,7 @@
     },
     {
       "date": "2026-02-04",
-      "equity": 1.136889,
+      "equity": 1.13689,
       "daily_return": -0.036712,
       "drawdown": -0.036712,
       "benchmark": 1.004421,
@@ -233,7 +233,7 @@
     {
       "date": "2026-02-05",
       "equity": 1.138376,
-      "daily_return": 0.001308,
+      "daily_return": 0.001307,
       "drawdown": -0.035452,
       "benchmark": 0.991876,
       "regime": "sim",
@@ -289,7 +289,7 @@
       "equity": 1.089757,
       "daily_return": 0.016393,
       "drawdown": -0.076647,
-      "benchmark": 0.997922,
+      "benchmark": 0.997921,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -316,7 +316,7 @@
       "equity": 1.08635,
       "daily_return": -0.016985,
       "drawdown": -0.079534,
-      "benchmark": 1.001918,
+      "benchmark": 1.001917,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -412,7 +412,7 @@
     },
     {
       "date": "2026-03-06",
-      "equity": 0.974873,
+      "equity": 0.974874,
       "daily_return": -0.036328,
       "drawdown": -0.173988,
       "benchmark": 0.984206,
@@ -423,7 +423,7 @@
       "date": "2026-03-09",
       "equity": 1.018732,
       "daily_return": 0.044989,
-      "drawdown": -0.136827,
+      "drawdown": -0.136826,
       "benchmark": 0.992828,
       "regime": "sim",
       "stock_exposure": 1.0
@@ -495,7 +495,7 @@
       "date": "2026-03-19",
       "equity": 1.062057,
       "daily_return": 0.011264,
-      "drawdown": -0.100118,
+      "drawdown": -0.100117,
       "benchmark": 0.965792,
       "regime": "sim",
       "stock_exposure": 1.0
@@ -505,7 +505,7 @@
       "equity": 1.009857,
       "daily_return": -0.04877,
       "drawdown": -0.144347,
-      "benchmark": 0.951946,
+      "benchmark": 0.951947,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -532,7 +532,7 @@
       "equity": 1.051534,
       "daily_return": -0.00059,
       "drawdown": -0.109033,
-      "benchmark": 0.964056,
+      "benchmark": 0.964055,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -586,7 +586,7 @@
       "equity": 1.038857,
       "daily_return": 0.002024,
       "drawdown": -0.119775,
-      "benchmark": 0.962603,
+      "benchmark": 0.962602,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -595,13 +595,13 @@
       "equity": 1.064146,
       "daily_return": 0.024344,
       "drawdown": -0.098347,
-      "benchmark": 0.967152,
+      "benchmark": 0.967153,
       "regime": "sim",
       "stock_exposure": 1.0
     },
     {
       "date": "2026-04-07",
-      "equity": 1.071,
+      "equity": 1.071001,
       "daily_return": 0.006844,
       "drawdown": -0.09254,
       "benchmark": 0.967578,
@@ -640,7 +640,7 @@
       "equity": 1.183323,
       "daily_return": 0.013468,
       "drawdown": 0.0,
-      "benchmark": 1.007031,
+      "benchmark": 1.007032,
       "regime": "sim",
       "stock_exposure": 1.0
     },
@@ -1051,7 +1051,7 @@
     },
     {
       "date": "2026-06-17",
-      "equity": 1.683706,
+      "equity": 1.683707,
       "daily_return": 0.018157,
       "drawdown": -0.000835,
       "benchmark": 1.087553,
@@ -1267,7 +1267,7 @@
     },
     {
       "date": "2026-07-23",
-      "equity": 1.595577,
+      "equity": 1.595578,
       "daily_return": -0.013816,
       "drawdown": -0.10165,
       "benchmark": 1.086264,
@@ -1663,7 +1663,7 @@
     },
     {
       "date": "2026-09-24",
-      "equity": 1.514406,
+      "equity": 1.514407,
       "daily_return": 0.001319,
       "drawdown": -0.147351,
       "benchmark": 1.131742,
