@@ -1416,5 +1416,69 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-10-16",
+    "timestamp": "2026-10-16T18:18:37.811667+00:00",
+    "target": [
+      "APA",
+      "FTNT",
+      "MPC",
+      "MRK",
+      "PSX"
+    ],
+    "portfolio_value": 94432.6,
+    "orders": [
+      {
+        "symbol": "IQV",
+        "side": "sell",
+        "qty": 69,
+        "order_id": "5732883b-e005-404b-b526-b6528ebafa63",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "TGT",
+        "side": "sell",
+        "qty": 119,
+        "order_id": "8697f398-de50-420f-9b03-a46bf0dee76f",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "MPC",
+        "side": "sell",
+        "qty": 2,
+        "order_id": "2279ed20-7979-4980-bd80-bb0d343c0968",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "PSX",
+        "side": "sell",
+        "qty": 2,
+        "order_id": "57582611-e4d4-4364-a299-cc27b237caa0",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "APA",
+        "side": "buy",
+        "qty": 386,
+        "order_id": "5e02677a-8d8d-4d01-bfd9-d584a8579e59",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "FTNT",
+        "side": "buy",
+        "qty": 110,
+        "order_id": "47ef66b8-103b-491e-bf3b-f20a9ca00c85",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "MRK",
+        "side": "buy",
+        "qty": 3,
+        "order_id": "da32339a-3db2-4bb3-ab9b-da07e7c47543",
+        "status": "OrderStatus.PENDING_NEW"
+      }
+    ],
+    "dry_run": false
   }
 ]
