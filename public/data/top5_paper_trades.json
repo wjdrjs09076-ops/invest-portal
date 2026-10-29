@@ -1537,5 +1537,62 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-10-29",
+    "timestamp": "2026-10-29T19:49:08.420422+00:00",
+    "target": [
+      "AAPL",
+      "FTNT",
+      "MPC",
+      "NTAP",
+      "PSX"
+    ],
+    "portfolio_value": 88572.05,
+    "orders": [
+      {
+        "symbol": "MRK",
+        "side": "sell",
+        "qty": 131,
+        "order_id": "8599d917-af81-47e9-8bbf-021e3c975dea",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "NTAP",
+        "side": "sell",
+        "qty": 8,
+        "order_id": "e563e0c3-5343-439e-92a6-ad4928041e3c",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "PSX",
+        "side": "sell",
+        "qty": 2,
+        "order_id": "2b8eaa17-e4a1-459c-8eea-f80825ce18d3",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "MPC",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "d41b7d19-fc89-422f-9e4c-aa8055c19d72",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "AAPL",
+        "side": "buy",
+        "qty": 51,
+        "order_id": "b0ec514c-2b0d-4bce-9141-2dce3950f1b9",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "FTNT",
+        "side": "buy",
+        "qty": 22,
+        "order_id": "fd01289c-f453-4724-8159-2abafb69ca2a",
+        "status": "OrderStatus.PENDING_NEW"
+      }
+    ],
+    "dry_run": false
   }
 ]
