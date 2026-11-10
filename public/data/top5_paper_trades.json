@@ -1772,5 +1772,69 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-11-10",
+    "timestamp": "2026-11-10T20:58:43.837033+00:00",
+    "target": [
+      "AMGN",
+      "MRK",
+      "PAYC",
+      "VTRS",
+      "WAT"
+    ],
+    "portfolio_value": 80682.91,
+    "orders": [
+      {
+        "symbol": "PSX",
+        "side": "sell",
+        "qty": 65,
+        "order_id": "f5584be7-5445-4e05-bd0e-8cc3847fd363",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "EXPD",
+        "side": "sell",
+        "qty": 86,
+        "order_id": "cd1cc22b-b5f1-441e-8e4a-0332c76160b3",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "PAYC",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "1ef0378b-c963-4aa6-8c57-ecfba4f1eec7",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "WAT",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "17ae84a6-cc93-4b80-9ad6-97ff46daddb4",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "MRK",
+        "side": "buy",
+        "qty": 109,
+        "order_id": "f11fdc7d-1761-47f7-b36e-95bb76f4e780",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "VTRS",
+        "side": "buy",
+        "qty": 775,
+        "order_id": "48c20a79-d368-4ef7-980a-92a49f493b69",
+        "status": "OrderStatus.PENDING_NEW"
+      },
+      {
+        "symbol": "AMGN",
+        "side": "buy",
+        "qty": 1,
+        "order_id": "1939c0bc-e441-4a22-8938-a481cebda1ef",
+        "status": "OrderStatus.PENDING_NEW"
+      }
+    ],
+    "dry_run": false
   }
 ]
