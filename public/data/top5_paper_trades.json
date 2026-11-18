@@ -1836,5 +1836,69 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-11-18",
+    "timestamp": "2026-11-18T22:16:56.434092+00:00",
+    "target": [
+      "AMGN",
+      "KO",
+      "VTRS",
+      "WAT",
+      "WST"
+    ],
+    "portfolio_value": 78165.35,
+    "orders": [
+      {
+        "symbol": "PAYC",
+        "side": "sell",
+        "qty": 68,
+        "order_id": "298839b8-7b2e-45f4-bcca-f550e2668058",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "MRK",
+        "side": "sell",
+        "qty": 109,
+        "order_id": "3587ece7-40b0-4a36-bdf7-3df10a585725",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "AMGN",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "41950575-d5d9-4fff-a53d-7967fc8a31c9",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "VTRS",
+        "side": "sell",
+        "qty": 4,
+        "order_id": "d9d3bc28-481d-4821-aa88-53589469ff44",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "KO",
+        "side": "buy",
+        "qty": 159,
+        "order_id": "c7c343be-060f-4409-b658-6d0d59dcf17b",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "WST",
+        "side": "buy",
+        "qty": 39,
+        "order_id": "7b02c4a7-486f-4ac8-8973-0aacd5a3e408",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "WAT",
+        "side": "buy",
+        "qty": 1,
+        "order_id": "adfbf560-4f31-4f74-b735-bf4aebe4af08",
+        "status": "OrderStatus.ACCEPTED"
+      }
+    ],
+    "dry_run": false
   }
 ]
