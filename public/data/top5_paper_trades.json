@@ -1900,5 +1900,62 @@
       }
     ],
     "dry_run": false
+  },
+  {
+    "date": "2026-11-20",
+    "timestamp": "2026-11-20T21:56:27.688706+00:00",
+    "target": [
+      "AMGN",
+      "GILD",
+      "KO",
+      "WAT",
+      "WST"
+    ],
+    "portfolio_value": 75968.96,
+    "orders": [
+      {
+        "symbol": "VTRS",
+        "side": "sell",
+        "qty": 771,
+        "order_id": "d5aa4f0c-419e-4753-bdb9-da312232f108",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "KO",
+        "side": "sell",
+        "qty": 2,
+        "order_id": "772f767d-8d75-44a3-8027-ea2ae556cb30",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "WST",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "c23ebea7-34a8-4bdb-9344-ff020a661369",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "AMGN",
+        "side": "sell",
+        "qty": 1,
+        "order_id": "9baf6f20-eac1-4c77-a2ce-fc7f61323ad1",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "GILD",
+        "side": "buy",
+        "qty": 90,
+        "order_id": "2e999b33-e81b-4778-8c56-e565801c40bd",
+        "status": "OrderStatus.ACCEPTED"
+      },
+      {
+        "symbol": "WAT",
+        "side": "buy",
+        "qty": 1,
+        "order_id": "bb57a724-f1b2-4694-a6a6-67a979f321fb",
+        "status": "OrderStatus.ACCEPTED"
+      }
+    ],
+    "dry_run": false
   }
 ]
